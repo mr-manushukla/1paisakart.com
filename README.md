@@ -44,13 +44,10 @@ cd backend && php artisan test
 Covers: 1 winner + 99 refunds per batch, wallet ledger consistency, draws never spend wallet, the 10% wallet cap on 100% buys, and batch cancellation refunds.
 
 ## Switch to MySQL
-Create a DB + user, then in `backend/.env`:
+One command (you enter your own MySQL root password once — it's never stored):
+```bash
+bash backend/setup-mysql.sh
 ```
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=onepaisakart
-DB_USERNAME=...
-DB_PASSWORD=...
-```
-`php artisan migrate:fresh --seed`. MySQL's InnoDB row locks make the concurrent draw-fill fully safe (SQLite serializes writes, which is also correct, just less concurrent).
+It creates the `onepaisakart` DB + a scoped `paisa` user, points `backend/.env` at MySQL, and runs `migrate:fresh --seed`. Then restart `php artisan serve`.
+
+MySQL's InnoDB row locks make the concurrent draw-fill fully safe (SQLite serializes writes, which is also correct, just less concurrent).
