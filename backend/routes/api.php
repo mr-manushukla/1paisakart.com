@@ -12,6 +12,7 @@ use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Vendor\ProductController as VendorProductController;
 use App\Http\Controllers\Vendor\SalesController as VendorSalesController;
 use App\Http\Controllers\WalletController;
+use App\Http\Controllers\WishlistController;
 use Illuminate\Support\Facades\Route;
 
 // ---- Auth (Sanctum SPA, cookie session) ----
@@ -40,6 +41,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/checkout', [CheckoutController::class, 'store']);
         Route::get('/wallet', [WalletController::class, 'show']);
         Route::get('/orders', [OrderController::class, 'index']);
+        Route::get('/wishlist', [WishlistController::class, 'index']);
+        Route::post('/products/{product:slug}/wishlist', [WishlistController::class, 'toggle']);
     });
 
     // Vendor

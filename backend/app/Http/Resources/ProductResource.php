@@ -16,9 +16,13 @@ class ProductResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
+            'brand' => $this->brand,
             'slug' => $this->slug,
             'description' => $this->description,
             'image' => $this->image,
+            'images' => $this->gallery(),
+            'specs' => $this->specs ?? [],
+            'in_wishlist' => in_array($this->id, $this->wishedIds($request), true),
             'listed_price' => $this->listed_price,            // paise
             'stock' => $this->stock,
             'allow_full_buy' => $this->allow_full_buy,
@@ -43,5 +47,18 @@ class ProductResource extends JsonResource
                 'remaining' => $open->size - $open->filled_count,
             ] : null,
         ];
+    }
+
+    /** The auth user's wished product ids — fetched once per request, no N+1. */
+    private function wishedIds(Request $request): array
+    {
+        if (! $request->user()) {
+            return [];
+        }
+        if (! $request->attributes->has('wished_ids')) {
+            $request->attributes->set('wished_ids', $request->user()->wishlists()->pluck('product_id')->all());
+        }
+
+        return $request->attributes->get('wished_ids');
     }
 }

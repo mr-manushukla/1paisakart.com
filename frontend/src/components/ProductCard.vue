@@ -3,6 +3,7 @@ import { RouterLink } from 'vue-router'
 import ProductImage from './ProductImage.vue'
 import DrawProgress from './DrawProgress.vue'
 import StarRating from './StarRating.vue'
+import WishlistHeart from './WishlistHeart.vue'
 import { money } from '../lib/money'
 import { useCartStore } from '../stores/cart'
 import { toast } from '../lib/toast'
@@ -21,6 +22,7 @@ function addToCart() {
     <RouterLink :to="{ name: 'product', params: { slug: product.slug } }" class="relative block">
       <ProductImage :src="product.image" :name="product.name" />
       <span v-if="product.allow_draw" class="chip absolute left-2 top-2 bg-accent-500 text-white">1% DRAW</span>
+      <WishlistHeart :product="product" floating class="absolute right-2 top-2" />
     </RouterLink>
 
     <div class="mt-3 flex flex-1 flex-col">

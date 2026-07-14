@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import api, { csrf } from '../lib/api'
+import { useWishlistStore } from './wishlist'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({ user: null, ready: false }),
@@ -17,6 +18,7 @@ export const useAuthStore = defineStore('auth', {
       try {
         const { data } = await api.get('/me')
         this.user = data.data
+        useWishlistStore().syncOnLogin()
       } catch {
         this.user = null
       } finally {
@@ -27,11 +29,13 @@ export const useAuthStore = defineStore('auth', {
       await csrf()
       const { data } = await api.post('/login', { email, password })
       this.user = data.data
+      useWishlistStore().syncOnLogin()
     },
     async register(payload) {
       await csrf()
       const { data } = await api.post('/register', payload)
       this.user = data.data
+      useWishlistStore().syncOnLogin()
     },
     async logout() {
       await api.post('/logout')

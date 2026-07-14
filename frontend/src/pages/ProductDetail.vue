@@ -6,9 +6,13 @@ import { money } from '../lib/money'
 import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { toast, apiError } from '../lib/toast'
-import ProductImage from '../components/ProductImage.vue'
+import ImageGallery from '../components/ImageGallery.vue'
 import DrawProgress from '../components/DrawProgress.vue'
 import StarRating from '../components/StarRating.vue'
+import QuantityStepper from '../components/QuantityStepper.vue'
+import WishlistHeart from '../components/WishlistHeart.vue'
+import ShareButtons from '../components/ShareButtons.vue'
+import ProductSpecs from '../components/ProductSpecs.vue'
 import ProductReviews from '../components/ProductReviews.vue'
 import RelatedProducts from '../components/RelatedProducts.vue'
 
@@ -18,9 +22,10 @@ const auth = useAuthStore()
 const cart = useCartStore()
 
 const product = ref(null)
-const batch = ref(null)          // { open:false } or a batch object
+const batch = ref(null)
 const loading = ref(true)
 const joining = ref(false)
+const qty = ref(1)
 let poll
 
 const slug = route.params.slug
@@ -32,7 +37,7 @@ async function fetchProduct() {
 }
 async function fetchBatch() {
   const { data } = await api.get(`/products/${slug}/batch`)
-  batch.value = data.data ?? data // data-wrapped when a real batch, plain {open:false} otherwise
+  batch.value = data.data ?? data
 }
 
 onMounted(async () => {
@@ -41,16 +46,16 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
-  poll = setInterval(fetchBatch, 8000) // live pool
+  poll = setInterval(fetchBatch, 8000)
 })
 onUnmounted(() => clearInterval(poll))
 
 function addToCart() {
-  cart.add(product.value)
-  toast(`${product.value.name} added to cart`)
+  cart.add(product.value, qty.value)
+  toast(`${qty.value} × ${product.value.name} added to cart`)
 }
 function buyNow() {
-  cart.add(product.value)
+  cart.add(product.value, qty.value)
   router.push({ name: auth.isAuthed && auth.isCustomer ? 'checkout' : 'cart' })
 }
 async function joinDraw() {
@@ -77,31 +82,40 @@ async function joinDraw() {
 
   <div v-else-if="product" class="space-y-8">
     <div class="grid gap-8 md:grid-cols-2">
-      <!-- Image -->
+      <!-- Gallery -->
       <div class="card p-4">
-        <ProductImage :src="product.image" :name="product.name" />
+        <ImageGallery :images="product.images" :name="product.name" />
       </div>
 
       <!-- Info + CTAs -->
       <div>
-        <RouterLink v-if="product.category" :to="{ name: 'shop', query: { category: product.category.slug } }" class="text-sm font-medium uppercase tracking-wide text-brand-600">
-          {{ product.category.name }}
-        </RouterLink>
-        <h1 class="mt-1 font-display text-3xl font-bold">{{ product.name }}</h1>
-        <p class="mt-1 text-sm text-slate-500">Sold by {{ product.shop?.name }}</p>
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <RouterLink v-if="product.category" :to="{ name: 'shop', query: { category: product.category.slug } }" class="text-sm font-medium uppercase tracking-wide text-brand-600">
+              {{ product.category.name }}
+            </RouterLink>
+            <h1 class="mt-1 font-display text-3xl font-bold">{{ product.name }}</h1>
+            <p class="mt-1 text-sm text-slate-500">
+              <span v-if="product.brand" class="font-medium text-slate-600">{{ product.brand }}</span>
+              <span v-if="product.brand"> · </span>Sold by {{ product.shop?.name }}
+            </p>
+          </div>
+          <WishlistHeart :product="product" />
+        </div>
+
         <div v-if="product.reviews_count" class="mt-2 flex items-center gap-1.5">
           <StarRating :value="product.rating" />
           <span class="text-sm text-slate-500">{{ product.rating }} · {{ product.reviews_count }} reviews</span>
         </div>
         <p class="mt-4 font-display text-3xl font-extrabold text-brand-700">{{ money(product.listed_price) }}</p>
-        <p class="mt-4 text-slate-600">{{ product.description }}</p>
 
         <!-- 100% buy -->
         <div v-if="product.allow_full_buy" class="card mt-6 p-4">
           <p class="text-sm font-semibold text-slate-700">Buy it outright</p>
           <p class="text-xs text-slate-500">In stock: {{ product.stock }} · Wallet covers up to {{ money(product.max_wallet_applicable) }} (10%).</p>
-          <div class="mt-3 flex gap-2">
-            <button class="btn-primary flex-1" :disabled="product.stock < 1" @click="buyNow">Buy now · {{ money(product.listed_price) }}</button>
+          <div class="mt-3 flex flex-wrap items-center gap-2">
+            <QuantityStepper v-model="qty" :max="Math.max(1, product.stock)" />
+            <button class="btn-primary flex-1" :disabled="product.stock < 1" @click="buyNow">Buy now · {{ money(product.listed_price * qty) }}</button>
             <button class="btn-ghost" :disabled="product.stock < 1" @click="addToCart">Add to cart</button>
           </div>
         </div>
@@ -121,8 +135,16 @@ async function joinDraw() {
             {{ joining ? 'Joining…' : `Join draw for ${money(product.entry_price)}` }}
           </button>
         </div>
+
+        <!-- Share -->
+        <div class="mt-4 border-t border-slate-100 pt-3">
+          <ShareButtons :title="product.name" />
+        </div>
       </div>
     </div>
+
+    <!-- Description + product information -->
+    <ProductSpecs :description="product.description" :brand="product.brand" :specs="product.specs" />
 
     <!-- Transparency: who's in the pool -->
     <section v-if="product.allow_draw && hasOpenPool" class="card p-6">

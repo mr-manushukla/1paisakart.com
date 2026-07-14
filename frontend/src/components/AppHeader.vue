@@ -3,11 +3,13 @@ import { ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
+import { useWishlistStore } from '../stores/wishlist'
 import { money } from '../lib/money'
 import { toast } from '../lib/toast'
 
 const auth = useAuthStore()
 const cart = useCartStore()
+const wishlist = useWishlistStore()
 const router = useRouter()
 const q = ref('')
 const menuOpen = ref(false)
@@ -44,6 +46,11 @@ async function logout() {
 
         <RouterLink v-if="auth.isCustomer" to="/wallet" class="hidden items-center gap-1 hover:text-brand-700 sm:flex">
           <span>👛</span><span class="font-semibold text-brand-700">{{ money(auth.walletBalance) }}</span>
+        </RouterLink>
+
+        <RouterLink to="/wishlist" class="relative hover:text-brand-700" aria-label="Saved items">
+          <span class="text-rose-500">♥</span>
+          <span v-if="wishlist.count" class="absolute -right-2 -top-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{{ wishlist.count }}</span>
         </RouterLink>
 
         <RouterLink to="/cart" class="relative hover:text-brand-700">

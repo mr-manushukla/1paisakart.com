@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Product extends Model
 {
     protected $fillable = [
-        'shop_id', 'category_id', 'name', 'slug', 'description', 'image',
+        'shop_id', 'category_id', 'name', 'brand', 'slug', 'description', 'image', 'images', 'specs',
         'listed_price', 'stock', 'allow_full_buy', 'allow_draw', 'platform_fee_pct', 'status',
     ];
 
@@ -21,7 +21,15 @@ class Product extends Model
             'allow_full_buy' => 'boolean',
             'allow_draw' => 'boolean',
             'platform_fee_pct' => 'decimal:2',
+            'images' => 'array',
+            'specs' => 'array',
         ];
+    }
+
+    /** Gallery images (falls back to the single primary image). */
+    public function gallery(): array
+    {
+        return ! empty($this->images) ? $this->images : array_filter([$this->image]);
     }
 
     public function shop(): BelongsTo { return $this->belongsTo(Shop::class); }

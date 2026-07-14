@@ -59,6 +59,38 @@ class DatabaseSeeder extends Seeder
             ]);
         });
 
+        // Gallery images (up to 5) + brand + product-information specs.
+        $details = [
+            'Wireless Earbuds Pro' => ['brand' => 'SonicWave', 'photos' => ['1590658268037-6bf12165a8df', '1505740420928-5e560c06d30e', '1611186871348-b1ce696e52c9', '1546435770-a3e426bf472b'],
+                'specs' => ['Model' => 'SW-Buds Pro', 'Color' => 'Charcoal Black', 'Weight' => '48 g (with case)', 'Dimensions' => '6 × 4.5 × 3 cm', 'Connectivity' => 'Bluetooth 5.3', 'Battery' => '28 h with case', 'Care' => 'Wipe with a dry cloth; keep the case charged', 'Shipping' => 'Free delivery in 2–4 days · 7-day returns']],
+            'Smart Watch Series X' => ['brand' => 'PulseTech', 'photos' => ['1523275335684-37898b6baf30', '1572569511254-d8f925fe2cbb', '1546435770-a3e426bf472b', '1600294037681-c80b4cb5b434'],
+                'specs' => ['Model' => 'PT-X', 'Color' => 'Midnight', 'Size' => '44 mm case', 'Weight' => '52 g', 'Dimensions' => '4.4 × 3.8 × 1.1 cm', 'Display' => '1.9" AMOLED', 'Water resistance' => '5 ATM', 'Care' => 'Rinse after workouts; avoid hot water', 'Shipping' => 'Free delivery in 2–4 days · 7-day returns']],
+            'Fast Power Bank 20000mAh' => ['brand' => 'VoltEdge', 'photos' => ['1609091839311-d5365f9ff1c5', '1600294037681-c80b4cb5b434', '1505740420928-5e560c06d30e'],
+                'specs' => ['Model' => 'VE-20K', 'Color' => 'Graphite', 'Capacity' => '20000 mAh', 'Weight' => '340 g', 'Dimensions' => '15 × 7 × 2.5 cm', 'Ports' => '2× USB-A, 1× USB-C PD', 'Care' => 'Do not expose to moisture', 'Shipping' => 'Free delivery in 2–4 days']],
+            'Premium Cotton T-Shirt' => ['brand' => 'UrbanThread', 'photos' => ['1521572163474-6864f9cf17ab', '1489987707025-afc232f7ea0f', '1520975954732-35dd22299614'],
+                'specs' => ['Color' => 'Sky Blue', 'Size' => 'S / M / L / XL', 'Material' => '100% Combed Cotton', 'Fit' => 'Regular', 'Weight' => '180 gsm', 'Care' => 'Machine wash cold, tumble dry low', 'Shipping' => 'Free delivery in 3–5 days · 15-day returns']],
+            'Road Runner Shoes' => ['brand' => 'StrideOne', 'photos' => ['1542291026-7eec264c27ff', '1556906781-9a412961c28c', '1595950653106-6c9ebd614d3a', '1600185365926-3a2ce3cdb9eb'],
+                'specs' => ['Model' => 'Runner Flyknit', 'Color' => 'Crimson Red', 'Size' => 'UK 6–11', 'Material' => 'Flyknit upper, EVA sole', 'Weight' => '240 g', 'Care' => 'Spot clean; air dry', 'Shipping' => 'Free delivery in 3–5 days · 15-day returns']],
+            'Steel Insulated Bottle 1L' => ['brand' => 'HydraKeep', 'photos' => ['1602143407151-7111542de6e8', '1523362628745-0c100150b504', '1594385208974-2e75f8d7bb48'],
+                'specs' => ['Color' => 'Brushed Steel', 'Capacity' => '1 Litre', 'Material' => '18/8 Stainless Steel', 'Weight' => '360 g', 'Dimensions' => '28 × 7 cm', 'Insulation' => 'Hot 12 h / Cold 24 h', 'Care' => 'Hand wash only', 'Shipping' => 'Free delivery in 3–5 days']],
+            'Non-stick Frying Pan' => ['brand' => 'ChefCraft', 'photos' => ['1556910633-5099dc3971e8', '1590794056226-79ef3a8147e1', '1594385208974-2e75f8d7bb48'],
+                'specs' => ['Model' => 'CC-28', 'Color' => 'Black', 'Size' => '28 cm', 'Material' => 'Aluminium, PFOA-free coating', 'Weight' => '780 g', 'Care' => 'Hand wash; use soft utensils', 'Shipping' => 'Free delivery in 3–5 days']],
+            'Organic Forest Honey 500g' => ['brand' => 'BeePure', 'photos' => ['1587049352846-4a222e784d38', '1558642891-54be180ea339', '1471943311424-646960669fbc', '1600271886742-f049cd451bba'],
+                'specs' => ['Weight' => '500 g', 'Type' => 'Raw, unfiltered', 'Ingredients' => '100% wild forest honey', 'Shelf life' => '24 months', 'Care' => 'Store in a cool, dry place', 'Shipping' => 'Free delivery in 2–4 days']],
+        ];
+
+        $products->each(function ($p) use ($details, $img) {
+            $d = $details[$p->name] ?? null;
+            if ($d) {
+                $p->update([
+                    'brand' => $d['brand'],
+                    'images' => array_map($img, $d['photos']),
+                    // ordered [{label,value}] — MySQL JSON reorders object keys, arrays keep order.
+                    'specs' => collect($d['specs'])->map(fn ($v, $k) => ['label' => $k, 'value' => $v])->values()->all(),
+                ]);
+            }
+        });
+
         // Demo customers; 42 of them join the flagship draw so the transparency
         // page shows a live, partially-filled pool (42/100).
         $customers = collect(range(1, 50))->map(

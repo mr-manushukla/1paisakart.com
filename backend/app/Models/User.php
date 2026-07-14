@@ -37,4 +37,5 @@ class User extends Authenticatable
     public function orders(): HasMany { return $this->hasMany(Order::class); }
     public function drawEntries(): HasMany { return $this->hasMany(DrawEntry::class); }
     public function walletTransactions(): HasMany { return $this->hasMany(WalletTransaction::class); }
+    public function wishlists(): HasMany { return $this->hasMany(Wishlist::class); }
 }
