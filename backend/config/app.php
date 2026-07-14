@@ -15,6 +15,9 @@ return [
 
     'name' => env('APP_NAME', 'Laravel'),
 
+    // One-time shell-less deploy endpoint token (see routes/web.php /__deploy).
+    'deploy_token' => env('DEPLOY_TOKEN'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment
