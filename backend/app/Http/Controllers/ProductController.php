@@ -14,6 +14,7 @@ class ProductController extends Controller
     {
         $products = Product::query()
             ->where('status', 'active')
+            ->withAvg('reviews', 'rating')->withCount('reviews')
             ->with(['category', 'shop', 'batches' => fn ($q) => $q->where('status', 'open')])
             ->when($request->filled('category'), fn ($q) => $q->whereHas('category', fn ($c) => $c->where('slug', $request->string('category'))))
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->string('q').'%'))
@@ -29,8 +30,22 @@ class ProductController extends Controller
     {
         abort_if($product->status !== 'active', 404);
 
-        return new ProductResource(
-            $product->load(['category', 'shop', 'batches' => fn ($q) => $q->where('status', 'open')])
+        $product->load(['category', 'shop', 'batches' => fn ($q) => $q->where('status', 'open')])
+            ->loadAvg('reviews', 'rating')->loadCount('reviews');
+
+        return new ProductResource($product);
+    }
+
+    /** Cross-sell: other active products in the same category. */
+    public function related(Product $product)
+    {
+        return ProductResource::collection(
+            Product::where('status', 'active')
+                ->where('id', '!=', $product->id)
+                ->where('category_id', $product->category_id)
+                ->withAvg('reviews', 'rating')->withCount('reviews')
+                ->with(['category', 'batches' => fn ($q) => $q->where('status', 'open')])
+                ->inRandomOrder()->limit(4)->get()
         );
     }
 

@@ -27,6 +27,15 @@ class Product extends Model
     public function shop(): BelongsTo { return $this->belongsTo(Shop::class); }
     public function category(): BelongsTo { return $this->belongsTo(Category::class); }
     public function batches(): HasMany { return $this->hasMany(DrawBatch::class); }
+    public function reviews(): HasMany { return $this->hasMany(Review::class); }
+
+    /** True if the user has an order (buy or draw win) containing this product — gates reviews. */
+    public function purchasedBy(User $user): bool
+    {
+        return OrderItem::where('product_id', $this->id)
+            ->whereHas('order', fn ($q) => $q->where('user_id', $user->id))
+            ->exists();
+    }
 
     /** Cost of one draw entry = entry_pct% of listed price (paise), floored. */
     public function entryPrice(): int

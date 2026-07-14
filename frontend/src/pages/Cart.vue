@@ -4,6 +4,7 @@ import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { money } from '../lib/money'
 import ProductImage from '../components/ProductImage.vue'
+import RelatedProducts from '../components/RelatedProducts.vue'
 
 const cart = useCartStore()
 const auth = useAuthStore()
@@ -48,6 +49,10 @@ function checkout() {
         <button class="btn-primary mt-4 w-full" @click="checkout">Checkout</button>
         <RouterLink to="/shop" class="mt-2 block text-center text-sm text-slate-500 hover:text-brand-700">Continue shopping</RouterLink>
       </div>
+    </div>
+
+    <div v-if="cart.items.length" class="mt-12">
+      <RelatedProducts :slug="cart.items[0].slug" title="Frequently bought with these" />
     </div>
   </div>
 </template>

@@ -8,6 +8,9 @@ import { useCartStore } from '../stores/cart'
 import { toast, apiError } from '../lib/toast'
 import ProductImage from '../components/ProductImage.vue'
 import DrawProgress from '../components/DrawProgress.vue'
+import StarRating from '../components/StarRating.vue'
+import ProductReviews from '../components/ProductReviews.vue'
+import RelatedProducts from '../components/RelatedProducts.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -86,6 +89,10 @@ async function joinDraw() {
         </RouterLink>
         <h1 class="mt-1 font-display text-3xl font-bold">{{ product.name }}</h1>
         <p class="mt-1 text-sm text-slate-500">Sold by {{ product.shop?.name }}</p>
+        <div v-if="product.reviews_count" class="mt-2 flex items-center gap-1.5">
+          <StarRating :value="product.rating" />
+          <span class="text-sm text-slate-500">{{ product.rating }} · {{ product.reviews_count }} reviews</span>
+        </div>
         <p class="mt-4 font-display text-3xl font-extrabold text-brand-700">{{ money(product.listed_price) }}</p>
         <p class="mt-4 text-slate-600">{{ product.description }}</p>
 
@@ -137,5 +144,11 @@ async function joinDraw() {
         </div>
       </div>
     </section>
+
+    <!-- Reviews -->
+    <ProductReviews :slug="slug" />
+
+    <!-- Cross-sell -->
+    <RelatedProducts :slug="slug" />
   </div>
 </template>

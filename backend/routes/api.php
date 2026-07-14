@@ -8,6 +8,7 @@ use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DrawController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReviewController;
 use App\Http\Controllers\Vendor\ProductController as VendorProductController;
 use App\Http\Controllers\Vendor\SalesController as VendorSalesController;
 use App\Http\Controllers\WalletController;
@@ -25,6 +26,8 @@ Route::get('/categories', fn () => \App\Models\Category::query()
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product:slug}', [ProductController::class, 'show']);
 Route::get('/products/{product:slug}/batch', [ProductController::class, 'batch']); // who's in the pool
+Route::get('/products/{product:slug}/related', [ProductController::class, 'related']); // cross-sell
+Route::get('/products/{product:slug}/reviews', [ReviewController::class, 'index']);
 
 // ---- Authenticated ----
 Route::middleware('auth:sanctum')->group(function () {
@@ -33,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Customer
     Route::middleware('role:customer')->group(function () {
         Route::post('/products/{product:slug}/enter-draw', [DrawController::class, 'enter']);
+        Route::post('/products/{product:slug}/reviews', [ReviewController::class, 'store']);
         Route::post('/checkout', [CheckoutController::class, 'store']);
         Route::get('/wallet', [WalletController::class, 'show']);
         Route::get('/orders', [OrderController::class, 'index']);

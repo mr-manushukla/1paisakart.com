@@ -2,6 +2,7 @@
 import { RouterLink } from 'vue-router'
 import ProductImage from './ProductImage.vue'
 import DrawProgress from './DrawProgress.vue'
+import StarRating from './StarRating.vue'
 import { money } from '../lib/money'
 import { useCartStore } from '../stores/cart'
 import { toast } from '../lib/toast'
@@ -27,6 +28,10 @@ function addToCart() {
       <RouterLink :to="{ name: 'product', params: { slug: product.slug } }" class="mt-0.5 line-clamp-2 font-semibold text-slate-800 hover:text-brand-700">
         {{ product.name }}
       </RouterLink>
+      <div v-if="product.reviews_count" class="mt-1 flex items-center gap-1 text-sm">
+        <StarRating :value="product.rating" size="text-sm" />
+        <span class="text-slate-400">{{ product.rating }} ({{ product.reviews_count }})</span>
+      </div>
       <p class="mt-1 font-display text-lg font-bold text-brand-700">{{ money(product.listed_price) }}</p>
 
       <div v-if="product.allow_draw && product.open_batch" class="mt-2">
