@@ -27,6 +27,28 @@ route, so Laravel serves the Vue SPA and the API from one origin (Sanctum cookie
 7. Migrate + seed via the token-guarded `GET /__deploy?token=…` route (shell-less DB setup),
    then disable it by removing `DEPLOY_TOKEN` from `.env` (route returns 403 without a token).
 
+## Redeploy after the first deploy (git-based, backend)
+SSH is now enabled (key at `~/.ssh/paisa_deploy` locally). The server has `git`, `composer`,
+and PHP 8.4 — but **no node**. So the backend redeploys from git; the frontend is built locally.
+
+**Backend** — push to GitHub, then on the server:
+```bash
+ssh -i ~/.ssh/paisa_deploy be4dkf29ol96@bom1plzcpnl503742.prod.bom1.secureserver.net
+bash ~/deploy.sh        # git pull → rsync → composer --no-dev → migrate --force → recache
+```
+(`~/deploy.sh` = [`deploy-cpanel.sh`](../deploy-cpanel.sh); pulls into `~/deploy-src`, syncs to `~/onepaisakart`.)
+
+**Frontend** — build locally and upload the two outputs:
+```bash
+cd frontend && npm run build
+# dist/assets/*      -> public_html/1paisakart.com/assets/   (SFTP)
+# dist/index.html    -> onepaisakart/public/spa.html          (SFTP)
+```
+
+**Production caches**: `config:cache` + `view:cache` + `event:cache` are applied (via the direct
+PHP binary). `route:cache` is skipped — some routes are closures. Re-run `deploy.sh` after any
+`.env` change so the config cache is rebuilt.
+
 ## Notes / gotchas
 - **SESSION_DRIVER=file**, not database — otherwise every request needs the `sessions` table,
   which doesn't exist until migrations run (chicken-and-egg with the deploy route).
