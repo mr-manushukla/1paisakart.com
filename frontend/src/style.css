@@ -1,0 +1,48 @@
+@import "tailwindcss";
+
+/* Brand: emerald (value/fresh) + amber accent (deals & the 1% draw). */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", var(--font-sans);
+
+  --color-brand-50:  #ecfdf5;
+  --color-brand-100: #d1fae5;
+  --color-brand-200: #a7f3d0;
+  --color-brand-300: #6ee7b7;
+  --color-brand-400: #34d399;
+  --color-brand-500: #10b981;
+  --color-brand-600: #059669;
+  --color-brand-700: #047857;
+  --color-brand-800: #065f46;
+  --color-brand-900: #064e3b;
+
+  --color-accent-400: #fbbf24;
+  --color-accent-500: #f59e0b;
+  --color-accent-600: #d97706;
+
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: #f8fafc;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, .font-display { font-family: var(--font-display); }
+
+/* Small reusable primitives (keeps markup DRY). */
+@layer components {
+  /* Shared base applied to all button variants (v4 @apply can't chain custom classes). */
+  .btn, .btn-primary, .btn-accent, .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply bg-brand-600 text-white hover:bg-brand-700; }
+  .btn-accent  { @apply bg-accent-500 text-white hover:bg-accent-600; }
+  .btn-ghost   { @apply border border-slate-200 bg-white text-slate-700 hover:border-brand-500 hover:text-brand-700; }
+  .card { @apply rounded-2xl border border-slate-100 bg-white shadow-sm; }
+  .input { @apply w-full rounded-lg border border-slate-200 px-3 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100; }
+  .chip { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }
+}
