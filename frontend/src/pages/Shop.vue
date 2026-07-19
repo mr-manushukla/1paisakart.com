@@ -49,8 +49,8 @@ watch(() => route.query, load)
         <h3 class="mb-3 font-semibold">Buying mode</h3>
         <div class="flex flex-col gap-1 text-sm">
           <button class="rounded-lg px-3 py-1.5 text-left" :class="!route.query.mode ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: undefined })">All products</button>
-          <button class="rounded-lg px-3 py-1.5 text-left" :class="route.query.mode === 'draw' ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: 'draw' })">🎲 1% Draws</button>
-          <button class="rounded-lg px-3 py-1.5 text-left" :class="route.query.mode === 'buy' ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: 'buy' })">🛒 Buy now</button>
+          <button class="rounded-lg px-3 py-1.5 text-left" :class="route.query.mode === 'draw' ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: 'draw' })">1% Draws</button>
+          <button class="rounded-lg px-3 py-1.5 text-left" :class="route.query.mode === 'buy' ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: 'buy' })">Buy now</button>
         </div>
       </div>
       <div class="card p-4">

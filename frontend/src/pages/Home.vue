@@ -38,7 +38,7 @@ const testimonials = [
     <section class="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🚚</span> Fast delivery</div>
       <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">👛</span> Wallet refunds</div>
-      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🎲</span> Provably fair draw</div>
+      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">⚖️</span> Provably fair draw</div>
       <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🔒</span> Secure checkout</div>
     </section>
 

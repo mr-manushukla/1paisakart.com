@@ -131,7 +131,7 @@ async function remove(p) {
             </div>
             <label class="flex items-center gap-2 text-sm"><input v-model="form.allow_full_buy" type="checkbox" /> Available to buy outright (100%)</label>
             <p class="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-800">
-              🎲 The <strong>1% lucky draw applies automatically</strong> to every product priced between ₹100 and ₹5,00,000 — no setup needed.
+              The <strong>1% lucky draw applies automatically</strong> to every product priced between ₹100 and ₹5,00,000 — no setup needed.
             </p>
           </div>
 
