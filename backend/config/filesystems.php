@@ -47,6 +47,21 @@ return [
             'report' => false,
         ],
 
+        /*
+         * Vendor-uploaded product images, written straight into the web root so
+         * Apache serves them as static files. On shared hosting the docroot is not
+         * the app's public/ dir, so point UPLOADS_ROOT at it, e.g.
+         *   UPLOADS_ROOT=/home/<user>/public_html/<domain>/uploads
+         */
+        'uploads' => [
+            'driver' => 'local',
+            'root' => env('UPLOADS_ROOT', public_path('uploads')),
+            'url' => env('UPLOADS_URL', '/uploads'),
+            'visibility' => 'public',
+            'throw' => false,
+            'report' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

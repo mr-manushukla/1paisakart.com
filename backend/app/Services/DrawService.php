@@ -32,8 +32,9 @@ class DrawService
     /** Book a 1% advance on a product, taking a seat in its club pool. */
     public function enter(Product $product, User $user): DrawEntry
     {
-        if (! $product->allow_draw) {
-            throw new BusinessException('This product is not available for the lucky draw.');
+        // The draw is global: any active product priced inside a club band qualifies.
+        if ($product->status !== 'active') {
+            throw new BusinessException('This product is not available.');
         }
         $club = $product->club();
         if (! $club) {

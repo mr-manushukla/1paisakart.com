@@ -51,6 +51,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Vendor
     Route::middleware('role:vendor')->prefix('vendor')->group(function () {
         Route::apiResource('products', VendorProductController::class)->except(['show']);
+        Route::post('/products/{product}/images', [VendorProductController::class, 'uploadImages']);
+        Route::delete('/products/{product}/images', [VendorProductController::class, 'deleteImage']);
+        Route::post('/products/{product}/images/primary', [VendorProductController::class, 'setPrimaryImage']);
         Route::get('/orders', [VendorSalesController::class, 'orders']);
         Route::get('/batches', [VendorSalesController::class, 'batches']); // read-only: pools are shared
     });

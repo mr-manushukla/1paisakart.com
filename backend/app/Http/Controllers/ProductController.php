@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\BatchResource;
 use App\Http\Resources\ProductResource;
+use App\Models\Club;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
@@ -18,7 +19,8 @@ class ProductController extends Controller
             ->with(['category', 'shop'])
             ->when($request->filled('category'), fn ($q) => $q->whereHas('category', fn ($c) => $c->where('slug', $request->string('category'))))
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->string('q').'%'))
-            ->when($request->input('mode') === 'draw', fn ($q) => $q->where('allow_draw', true))
+            // Draw is global: eligible = active and priced inside a club band.
+            ->when($request->input('mode') === 'draw', fn ($q) => $q->whereBetween('listed_price', [Club::min('min_price'), Club::max('max_price')]))
             ->when($request->input('mode') === 'buy', fn ($q) => $q->where('allow_full_buy', true))
             ->latest('id')
             ->paginate(12);

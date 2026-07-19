@@ -121,7 +121,7 @@ async function joinDraw() {
         </div>
 
         <!-- 1% draw -->
-        <div v-if="product.allow_draw" class="mt-4 rounded-2xl border-2 border-accent-500/30 bg-accent-500/5 p-4">
+        <div v-if="product.draw_eligible" class="mt-4 rounded-2xl border-2 border-accent-500/30 bg-accent-500/5 p-4">
           <div class="flex items-center justify-between">
             <p class="text-sm font-semibold text-accent-700">🎲 Book with a 1% advance</p>
             <span class="chip bg-accent-500 text-white">{{ money(product.entry_price) }} now</span>
@@ -154,7 +154,7 @@ async function joinDraw() {
     <ProductSpecs :description="product.description" :brand="product.brand" :specs="product.specs" />
 
     <!-- Transparency: who's in the pool -->
-    <section v-if="product.allow_draw && hasOpenPool" class="card p-6">
+    <section v-if="product.draw_eligible && hasOpenPool" class="card p-6">
       <div class="mb-4 flex items-center justify-between">
         <div>
           <h2 class="font-display text-xl font-bold">Who's in the pool <span class="text-slate-400">· {{ batch.club?.label }} · pool #{{ batch.batch_no }}</span></h2>

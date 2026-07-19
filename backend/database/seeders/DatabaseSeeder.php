@@ -29,20 +29,21 @@ class DatabaseSeeder extends Seeder
 
         $img = fn ($id) => "https://images.unsplash.com/photo-$id?w=600&q=80&auto=format&fit=crop";
 
-        // [shop, category, name, price₹, stock, full_buy, draw, unsplash-photo-id]
+        // [shop, category, name, price₹, stock, full_buy, unsplash-photo-id]
+        // The 1% draw is global — every active product in a club band qualifies.
         $rows = [
-            [$shop1, 'Electronics', 'Wireless Earbuds Pro', 1999, 50, true, true, '1590658268037-6bf12165a8df'],
-            [$shop1, 'Electronics', 'Smart Watch Series X', 4999, 30, true, true, '1523275335684-37898b6baf30'],
-            [$shop1, 'Electronics', 'Fast Power Bank 20000mAh', 1299, 80, true, false, '1609091839311-d5365f9ff1c5'],
-            [$shop2, 'Fashion', 'Premium Cotton T-Shirt', 599, 200, true, false, '1521572163474-6864f9cf17ab'],
-            [$shop2, 'Fashion', 'Road Runner Shoes', 2499, 40, true, true, '1542291026-7eec264c27ff'],
-            [$shop2, 'Home & Kitchen', 'Steel Insulated Bottle 1L', 399, 150, true, false, '1602143407151-7111542de6e8'],
-            [$shop1, 'Home & Kitchen', 'Non-stick Frying Pan', 899, 60, true, false, '1556910633-5099dc3971e8'],
-            [$shop2, 'Grocery', 'Organic Forest Honey 500g', 349, 120, true, false, '1587049352846-4a222e784d38'],
+            [$shop1, 'Electronics', 'Wireless Earbuds Pro', 1999, 50, true, '1590658268037-6bf12165a8df'],
+            [$shop1, 'Electronics', 'Smart Watch Series X', 4999, 30, true, '1523275335684-37898b6baf30'],
+            [$shop1, 'Electronics', 'Fast Power Bank 20000mAh', 1299, 80, true, '1609091839311-d5365f9ff1c5'],
+            [$shop2, 'Fashion', 'Premium Cotton T-Shirt', 599, 200, true, '1521572163474-6864f9cf17ab'],
+            [$shop2, 'Fashion', 'Road Runner Shoes', 2499, 40, true, '1542291026-7eec264c27ff'],
+            [$shop2, 'Home & Kitchen', 'Steel Insulated Bottle 1L', 399, 150, true, '1602143407151-7111542de6e8'],
+            [$shop1, 'Home & Kitchen', 'Non-stick Frying Pan', 899, 60, true, '1556910633-5099dc3971e8'],
+            [$shop2, 'Grocery', 'Organic Forest Honey 500g', 349, 120, true, '1587049352846-4a222e784d38'],
         ];
 
         $products = collect($rows)->map(function ($r) use ($cats, $img) {
-            [$shop, $cat, $name, $rupees, $stock, $fullBuy, $draw, $photo] = $r;
+            [$shop, $cat, $name, $rupees, $stock, $fullBuy, $photo] = $r;
 
             return Product::create([
                 'shop_id' => $shop->id,
@@ -54,7 +55,6 @@ class DatabaseSeeder extends Seeder
                 'listed_price' => $rupees * 100, // paise
                 'stock' => $stock,
                 'allow_full_buy' => $fullBuy,
-                'allow_draw' => $draw,
                 'status' => 'active',
             ]);
         });

@@ -10,7 +10,7 @@ class Product extends Model
 {
     protected $fillable = [
         'shop_id', 'category_id', 'name', 'brand', 'slug', 'description', 'image', 'images', 'specs',
-        'listed_price', 'stock', 'allow_full_buy', 'allow_draw', 'platform_fee_pct', 'status',
+        'listed_price', 'stock', 'allow_full_buy', 'platform_fee_pct', 'status',
     ];
 
     protected function casts(): array
@@ -19,7 +19,6 @@ class Product extends Model
             'listed_price' => 'integer',
             'stock' => 'integer',
             'allow_full_buy' => 'boolean',
-            'allow_draw' => 'boolean',
             'platform_fee_pct' => 'decimal:2',
             'images' => 'array',
             'specs' => 'array',
@@ -41,6 +40,15 @@ class Product extends Model
     public function club(): ?Club
     {
         return Club::forPrice($this->listed_price);
+    }
+
+    /**
+     * The 1% draw is a GLOBAL feature — no per-product opt-in. A product is
+     * eligible when it's active and its price falls inside a club band.
+     */
+    public function drawEligible(): bool
+    {
+        return $this->status === 'active' && $this->club() !== null;
     }
 
     /** True if the user has an order (buy or draw win) containing this product — gates reviews. */

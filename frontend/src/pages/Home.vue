@@ -17,7 +17,7 @@ onMounted(async () => {
   }
 })
 
-const draws = computed(() => products.value.filter((p) => p.allow_draw).slice(0, 4))
+const draws = computed(() => products.value.filter((p) => p.draw_eligible).slice(0, 4))
 const bestSellers = computed(() =>
   [...products.value].sort((a, b) => (b.reviews_count || 0) - (a.reviews_count || 0)).slice(0, 4)
 )

@@ -34,7 +34,6 @@ class MoneyCoreTest extends TestCase
             'listed_price' => $rupees * 100,
             'stock' => 500,
             'allow_full_buy' => true,
-            'allow_draw' => true,
             'status' => 'active',
         ], $attrs));
     }
@@ -47,6 +46,19 @@ class MoneyCoreTest extends TestCase
 
         $this->assertSame($a->club()->id, $b->club()->id);
         $this->assertNotSame($a->club()->id, $c->club()->id);
+    }
+
+    public function test_draw_is_global_but_needs_a_price_inside_a_club_band(): void
+    {
+        // No per-product opt-in: any active, in-range product qualifies.
+        $this->assertTrue($this->makeProduct(2000)->drawEligible());
+
+        // ₹6,00,000 is above the top band (₹5,00,000) → not eligible, booking refused.
+        $tooDear = $this->makeProduct(600000);
+        $this->assertFalse($tooDear->drawEligible());
+
+        $this->expectException(\App\Exceptions\BusinessException::class);
+        app(DrawService::class)->enter($tooDear, User::factory()->create(['role' => 'customer']));
     }
 
     public function test_club_pool_fills_across_mixed_products_and_draws_one_winner(): void
@@ -145,7 +157,7 @@ class MoneyCoreTest extends TestCase
 
     public function test_wallet_is_capped_at_one_percent_on_a_full_buy(): void
     {
-        $product = $this->makeProduct(2000, ['allow_draw' => false]); // ₹2,000 = 200000 paise
+        $product = $this->makeProduct(2000); // ₹2,000 = 200000 paise
         $user = User::factory()->create(['role' => 'customer']);
         app(WalletService::class)->credit($user, 500000, 'admin_adjust'); // plenty
 

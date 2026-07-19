@@ -25,8 +25,8 @@ class ProductResource extends JsonResource
             'listed_price' => $this->listed_price,            // paise
             'stock' => $this->stock,
             'allow_full_buy' => $this->allow_full_buy,
-            'allow_draw' => $this->allow_draw,
-            'entry_price' => $this->allow_draw ? $this->entryPrice() : null,
+            'draw_eligible' => $this->isDrawEligible($request), // 1% draw is global, not per-product
+            'entry_price' => $this->isDrawEligible($request) ? $this->entryPrice() : null,
             'max_wallet_applicable' => $this->maxWalletApplicable(),
             'rating' => $this->reviews_avg_rating !== null ? round((float) $this->reviews_avg_rating, 1) : null,
             'reviews_count' => $this->reviews_count ?? 0,
@@ -46,19 +46,27 @@ class ProductResource extends JsonResource
      * Draw pools are club-scoped, so there's no per-product relation to eager load.
      * Clubs + open pools are each fetched once per request and reused.
      */
-    private function openPool(Request $request): ?array
+    /** The club whose band contains this price — clubs are loaded once per request. */
+    private function clubFor(Request $request)
     {
-        if (! $this->allow_draw) {
-            return null;
-        }
         if (! $request->attributes->has('draw_clubs')) {
             $request->attributes->set('draw_clubs', Club::orderBy('min_price')->get());
             $request->attributes->set('draw_open_batches', DrawBatch::where('status', 'open')->get()->keyBy('club_id'));
         }
 
-        $club = $request->attributes->get('draw_clubs')
+        return $request->attributes->get('draw_clubs')
             ->first(fn ($c) => $this->listed_price >= $c->min_price && $this->listed_price <= $c->max_price);
-        if (! $club) {
+    }
+
+    private function isDrawEligible(Request $request): bool
+    {
+        return $this->status === 'active' && $this->clubFor($request) !== null;
+    }
+
+    private function openPool(Request $request): ?array
+    {
+        $club = $this->clubFor($request);
+        if (! $club || $this->status !== 'active') {
             return null;
         }
 
