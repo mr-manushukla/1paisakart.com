@@ -21,7 +21,6 @@ function addToCart() {
   <div class="card flex flex-col overflow-hidden p-3 transition hover:shadow-md">
     <RouterLink :to="{ name: 'product', params: { slug: product.slug } }" class="relative block">
       <ProductImage :src="product.image" :name="product.name" />
-      <span v-if="product.draw_eligible" class="chip absolute left-2 top-2 bg-accent-500 text-white">1% DRAW</span>
       <WishlistHeart :product="product" floating class="absolute right-2 top-2" />
     </RouterLink>
 
