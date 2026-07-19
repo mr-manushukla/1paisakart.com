@@ -30,6 +30,7 @@ let poll
 
 const slug = route.params.slug
 const hasOpenPool = computed(() => batch.value && batch.value.open !== false)
+const bothOptions = computed(() => !!(product.value?.allow_full_buy && product.value?.draw_eligible))
 
 async function fetchProduct() {
   const { data } = await api.get(`/products/${slug}`)
@@ -109,38 +110,47 @@ async function joinDraw() {
         </div>
         <p class="mt-4 font-display text-3xl font-extrabold text-brand-700">{{ money(product.listed_price) }}</p>
 
-        <!-- 100% buy -->
-        <div v-if="product.allow_full_buy" class="card mt-6 p-4">
-          <p class="text-sm font-semibold text-slate-700">Buy it outright</p>
+        <!-- Purchase: both buying options together -->
+        <div class="card mt-6 p-4">
           <p class="text-xs text-slate-500">In stock: {{ product.stock }} · Wallet covers up to {{ money(product.max_wallet_applicable) }} (1%).</p>
-          <div class="mt-3 flex flex-wrap items-center gap-2">
-            <QuantityStepper v-model="qty" :max="Math.max(1, product.stock)" />
-            <button class="btn-primary flex-1" :disabled="product.stock < 1" @click="buyNow">Buy now · {{ money(product.listed_price * qty) }}</button>
-            <button class="btn-ghost" :disabled="product.stock < 1" @click="addToCart">Add to cart</button>
-          </div>
-        </div>
 
-        <!-- 1% draw -->
-        <div v-if="product.draw_eligible" class="mt-4 rounded-2xl border-2 border-accent-500/30 bg-accent-500/5 p-4">
-          <div class="flex items-center justify-between">
-            <p class="text-sm font-semibold text-accent-700">🎲 Book with a 1% advance</p>
-            <span class="chip bg-accent-500 text-white">{{ money(product.entry_price) }} now</span>
+          <div v-if="product.allow_full_buy" class="mt-3 flex items-center gap-2">
+            <QuantityStepper v-model="qty" :max="Math.max(1, product.stock)" />
+            <button class="btn-ghost flex-1" :disabled="product.stock < 1" @click="addToCart">Add to cart</button>
           </div>
-          <p v-if="product.open_batch?.club" class="mt-1 text-xs font-medium text-slate-600">
-            Club {{ product.open_batch.club.label }} · odds 1 in {{ product.open_batch.size }}
-          </p>
-          <p class="mt-1 text-xs text-slate-500">
-            <strong>Win</strong> and the product is yours — your 1% covers it (government taxes on the prize apply).
-            <strong>Didn't win?</strong> Either pay the remaining {{ money(product.listed_price - product.entry_price) }} to buy it,
-            or move your {{ money(product.entry_price) }} to your wallet.
-          </p>
-          <div v-if="hasOpenPool" class="mt-3">
-            <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="product.entry_price" />
+
+          <!-- The two ways to buy -->
+          <div class="mt-3 grid gap-3" :class="bothOptions ? 'sm:grid-cols-2' : 'grid-cols-1'">
+            <div v-if="product.allow_full_buy">
+              <button class="btn-primary w-full" :disabled="product.stock < 1" @click="buyNow">
+                Buy now · {{ money(product.listed_price * qty) }}
+              </button>
+              <p class="mt-1 text-center text-[11px] text-slate-500">Own it today — pay the full price</p>
+            </div>
+            <div v-if="product.draw_eligible">
+              <button class="btn-accent w-full" :disabled="joining" @click="joinDraw">
+                {{ joining ? 'Booking…' : `Book for ${money(product.entry_price)}` }}
+              </button>
+              <p class="mt-1 text-center text-[11px] text-slate-500">Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}</p>
+            </div>
           </div>
-          <p v-else class="mt-3 text-sm text-slate-500">No open pool yet — <span class="font-semibold text-accent-700">be the first to book a seat!</span></p>
-          <button class="btn-accent mt-3 w-full" :disabled="joining" @click="joinDraw">
-            {{ joining ? 'Booking…' : `Book for ${money(product.entry_price)}` }}
-          </button>
+
+          <!-- How the 1% booking works -->
+          <div v-if="product.draw_eligible" class="mt-4 rounded-xl border border-accent-500/30 bg-accent-500/5 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold text-accent-700">Book with a 1% advance</p>
+              <span v-if="product.open_batch?.club" class="chip bg-accent-500/10 text-accent-600">{{ product.open_batch.club.label }}</span>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">
+              <strong>Win</strong> and the product is yours — your 1% covers it (government taxes on the prize apply).
+              <strong>Didn't win?</strong> Either pay the remaining {{ money(product.listed_price - product.entry_price) }} to buy it,
+              or move your {{ money(product.entry_price) }} to your wallet.
+            </p>
+            <div v-if="hasOpenPool" class="mt-2">
+              <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="product.entry_price" />
+            </div>
+            <p v-else class="mt-2 text-sm text-slate-500">No open pool yet — <span class="font-semibold text-accent-700">be the first to book a seat!</span></p>
+          </div>
         </div>
 
         <!-- Share -->
