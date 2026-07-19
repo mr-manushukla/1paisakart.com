@@ -26,7 +26,11 @@ Route::get('/__deploy', function () {
 
 // Serve the built Vue SPA for everything that isn't an API/asset route.
 Route::fallback(function () {
-    if (request()->is('api/*')) {
+    $request = request();
+    // A missing API route or static asset must 404 — don't hand back the SPA shell
+    // (otherwise a deleted image would "200" with an HTML page).
+    if ($request->is('api/*', 'uploads/*', 'assets/*', 'storage/*')
+        || pathinfo($request->path(), PATHINFO_EXTENSION) !== '') {
         abort(404);
     }
     $spa = public_path('spa.html');
