@@ -17,7 +17,7 @@ class WishlistController extends Controller
         return ProductResource::collection(
             Product::whereIn('id', $ids)->where('status', 'active')
                 ->withAvg('reviews', 'rating')->withCount('reviews')
-                ->with(['category', 'batches' => fn ($q) => $q->where('status', 'open')])
+                ->with(['category'])
                 ->get()
         );
     }

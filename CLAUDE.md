@@ -13,20 +13,25 @@ Single **admin**, many **vendors**, many **customers**. `users.role` enum — no
 ## The two buying models (money core — never guess here)
 See `docs/BUSINESS_RULES.md` for the authoritative spec. Summary:
 
-1. **100% Buy** — pay full listed price. Wallet credit may cover **≤10% of the item price**; rest is real money.
-2. **1% Draw** — product runs in **batches of 100**. Each entry costs **1% of listed price**. At **100/100** the batch closes and **one random winner** receives the product for their 1%; the other **99 are refunded to wallet**. The pooled 100% = vendor payout + platform fee.
+1. **100% Buy** — pay full listed price. Wallet credit may cover **≤1% of the item price**; rest is real money.
+2. **Lucky Draw (1% advance)** — pools are per **price-band club**, *not* per product, so similar-priced
+   products share a pool. Pay a **1% advance** (real money only) to book a seat. At **100 seats** the pool
+   draws **one winner** (1 in 100) who keeps **the product they booked** — the 1% covers it and the
+   **platform absorbs the balance**. The other 99 are **not auto-refunded**: they get a **7-day window** to
+   either **pay the remaining 99%** (Option A) or **move the 1% to wallet** (Option B). No choice → Option B.
 
 ### Wallet rules (restricted credit)
-- Refund credit is **restricted**: usable **only** on a 100% buy, capped at **10% of that item's price**.
-- **Never** usable to enter a 1% draw.
+- Usable on a purchase, capped at **1% of that item's price** (`wallet_cap_pct`).
+- **Never** usable to pay a 1% booking advance.
 - Balance is a **ledger** (`wallet_transactions`) + cached `users.wallet_balance`, both written in one DB transaction.
 
 ### Draw integrity
-- Adding the 100th entry must atomically close the batch and trigger the draw **exactly once** — pessimistic row lock on the batch inside a DB transaction.
+- Adding the 100th seat must atomically close the pool and draw **exactly once** — pessimistic row lock on the batch inside a DB transaction.
 - Winner via `random_int` server-side. Never client-supplied.
 
 ### Transparency
-- Every open batch exposes a **public** endpoint: fill progress (X/100) + participant list (masked names). "Who is in the pool" is fully visible.
+- Every open club pool exposes a **public** endpoint: fill progress (X/100), odds, and the participant list
+  (masked names **+ the product each seat booked**). "Who is in the pool" is fully visible.
 
 ## Coding rules
 - **KISS / DRY / SOLID**, ponytail-lazy: climb the ladder — reuse Laravel/Vue built-ins before writing code, one line before fifty, no speculative abstractions.

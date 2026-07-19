@@ -5,47 +5,61 @@ All money is stored and computed as **integer paise** (₹1 = 100 paise). No flo
 
 ## 1. Products & pricing
 - A product belongs to one **vendor** and one **category**.
-- `listed_price` = **vendor payout + platform fee**. Platform fee is a configurable **percentage** (`platform_fee_pct`, global default, overridable per product).
+- `listed_price` = **vendor payout + platform fee** (`platform_fee_pct`, global default, overridable per product).
 - A product can enable either or both buying modes: `allow_full_buy`, `allow_draw`.
 
 ## 2. Model A — 100% Buy
 - Customer pays the full `listed_price`.
-- **Wallet credit** may be applied, capped at **10% of the item's price** (`floor(listed_price * 0.10)`), limited further by the wallet balance. Remainder paid via gateway.
-- On payment success → `orders` + `order_items`, stock decremented, vendor payout accrued.
-- Wallet applied on a 100% buy debits the wallet ledger (a `purchase_debit` transaction).
+- **Wallet credit** may be applied, capped at **1% of the item's price** (`wallet_cap_pct`), limited further
+  by the wallet balance. Remainder paid via gateway.
+- Wallet applied on a buy debits the ledger (`purchase_debit`).
 
-## 3. Model B — 1% Draw (lucky draw)
-- Product draws run in **batches of exactly 100 entries**.
-- Entry cost = **1% of `listed_price`** = `floor(listed_price / 100)` paise, per entry. (Rounding remainder, if any, is absorbed by the platform fee — never charge the customer more than 1%.)
-- Payment for an entry is **real money only** — wallet credit can NOT be used to enter a draw.
-- A user may hold at most **one active entry per open batch** (configurable via `max_entries_per_user`, default 1).
-- When the **100th** entry is added:
-  1. Batch atomically transitions `open → filled` (pessimistic row lock; the fill happens exactly once).
-  2. A single **winner** is chosen with `random_int` over the 100 entries.
-  3. Winner's entry → `won`. Winner receives the product (a fulfilled order at their 1% cost). No further charge to the winner.
-  4. The other **99 entries → refunded**: each gets a **restricted** wallet credit equal to their 1% entry cost.
-  5. Pool (100 × 1% = `listed_price`) settles vendor payout + platform fee.
-  6. Batch → `drawn`. A fresh `open` batch may be opened for the product on demand.
-- If a batch never fills and is **cancelled** by admin/vendor: all entries refunded as restricted wallet credit (same rule as losers).
+## 3. Model B — Lucky Draw Purchase Scheme (1% advance)
+
+### Clubs (price bands)
+Draw pools are **per price-band club**, *not* per product — so two different products of similar price
+share one pool (e.g. a ₹1L phone and a ₹1L laptop). Bands: `100–1000`, `1001–5000`, then **₹5,000 steps
+up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolved from its `listed_price`.
+
+### Flow
+1. **Secure your entry** — customer pays a **1% advance** (`floor(listed_price / 100)`) to book a seat.
+   The advance is **real money only** — wallet credit can never pay it. Participation requires the advance.
+2. **The draw** — a club pool holds **100 seats**. When the 100th seat is booked the pool closes and draws
+   **one winner** (odds **1 in 100**).
+3. **If you win** — you receive **the product you booked**. Your 1% covers the total cost; no further
+   payment (government taxes on the prize value are the winner's responsibility). The **platform absorbs**
+   the balance so the vendor is paid in full. Subsidy is derivable as `subtotal - wallet_applied - payable`.
+4. **If you don't win** — the advance is **not** auto-refunded. The entry becomes `lost_pending` with a
+   **7-day choice window** (`choice_window_days`), and the customer picks:
+   - **Option A — Purchase**: pay the remaining 99%; the 1% is fully adjusted (`payable = listed_price - advance`).
+   - **Option B — Wallet credit**: the 1% moves to their wallet, usable toward any other product.
+   - **No choice in time** → Option B is applied automatically (`draws:auto-credit`, scheduled hourly).
+- If a pool is **cancelled** by an admin, every active advance is credited back to wallet.
+
+### Entry states
+`active` → `won` | `lost_pending` → (`converted` | `credited`) ; `refunded` when a pool is cancelled.
 
 ## 4. Wallet (restricted credit)
-- Source of truth: `wallet_transactions` ledger. `users.wallet_balance` is a cached mirror, written in the **same DB transaction** as the ledger row.
-- Credit types: `draw_refund` (restricted), `admin_adjust`.
-- Debit types: `purchase_debit`.
-- **Restriction:** wallet credit is spendable **only** on a 100% buy, and only up to **10% of the item's price** per item. It can **never** fund a 1% draw entry.
-- Ledger rows are **append-only**. Never mutate a past transaction; correct with a new offsetting row.
+- Source of truth: `wallet_transactions` ledger. `users.wallet_balance` is a cached mirror written in the
+  **same DB transaction**.
+- Credit types: `draw_refund`, `admin_adjust`. Debit: `purchase_debit`.
+- **Restriction:** spendable on a purchase up to **1% of that item's price**; it can **never** pay a 1%
+  booking advance.
+- Ledger rows are **append-only** — correct with an offsetting row, never mutate.
 
 ## 5. Roles & ownership
-- **admin** (single): manages categories, vendors, platform fee, can cancel batches, sees everything.
-- **vendor**: manages own products & batches, sees own orders/entries/payouts.
-- **customer**: buys, enters draws, has a wallet.
+- **admin** (single): categories, vendors, platform fee, may cancel pools, sees everything.
+- **vendor**: own products/orders; club pools are **read-only** (a pool is shared across vendors).
+- **customer**: buys, books draws, has a wallet.
 
 ## 6. Transparency (explicit requirement)
-- For any product with an open batch, a **public** endpoint returns: `filled/100`, and the participant list with **masked** display names (e.g. `Ma***la`). The pool is fully visible to anyone.
+- Every open club pool exposes a **public** endpoint: `filled/100`, the odds, and the participant list with
+  **masked** names **plus the product each seat booked** and the advance paid.
 
 ## 7. Invariants (enforced + tested)
 - `sum(wallet_transactions.amount for user) == users.wallet_balance` always.
-- A filled batch has exactly **1** `won` entry and **99** `refunded` entries.
-- No draw entry is ever paid with wallet credit.
-- Wallet applied to any single 100% item ≤ `floor(item_price * 0.10)`.
-- No batch is drawn twice.
+- A drawn pool has exactly **1** `won` entry; the rest are `lost_pending` (never auto-credited at draw time).
+- The winner's order is for **the product that entry booked**, with `payable == advance`.
+- No booking advance is ever paid from wallet credit.
+- Wallet applied to a single item ≤ `floor(item_price * wallet_cap_pct / 100)`.
+- No pool is drawn twice.

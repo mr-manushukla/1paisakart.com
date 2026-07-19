@@ -49,7 +49,7 @@ const testimonials = [
       <div class="mb-4 flex items-end justify-between">
         <div>
           <h2 class="font-display text-2xl font-bold">Live 1% draws</h2>
-          <p class="text-sm text-slate-500">Join for 1% · odds 1 in 100 · full refund if you don't win.</p>
+          <p class="text-sm text-slate-500">Book for 1% · odds 1 in 100 · didn't win? buy it or keep the credit.</p>
         </div>
         <RouterLink to="/shop?mode=draw" class="text-sm font-medium text-brand-700 hover:underline">View all →</RouterLink>
       </div>
@@ -64,18 +64,18 @@ const testimonials = [
       <div class="mt-6 grid gap-6 md:grid-cols-3">
         <div class="text-center">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 font-bold text-white">1</div>
-          <p class="mt-2 font-semibold">Grab a seat for 1%</p>
-          <p class="text-sm text-slate-500">Pay 1% of the price to take one of 100 seats in the pool.</p>
+          <p class="mt-2 font-semibold">Book with a 1% advance</p>
+          <p class="text-sm text-slate-500">Pay 1% to take one of 100 seats in your product's price-band club.</p>
         </div>
         <div class="text-center">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 font-bold text-white">2</div>
-          <p class="mt-2 font-semibold">Pool fills to 100</p>
-          <p class="text-sm text-slate-500">Watch it live — every participant is public. No hidden odds.</p>
+          <p class="mt-2 font-semibold">The pool fills to 100</p>
+          <p class="text-sm text-slate-500">Watch it live — every seat is public, including what each member booked. Odds 1 in 100.</p>
         </div>
         <div class="text-center">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 font-bold text-white">3</div>
-          <p class="mt-2 font-semibold">One winner, 99 refunds</p>
-          <p class="text-sm text-slate-500">A random winner keeps it for their 1%. Everyone else is refunded to wallet.</p>
+          <p class="mt-2 font-semibold">Win it — or choose</p>
+          <p class="text-sm text-slate-500">The winner keeps their product for the 1%. Everyone else pays the remaining 99% to buy it, or moves the 1% to their wallet.</p>
         </div>
       </div>
     </section>

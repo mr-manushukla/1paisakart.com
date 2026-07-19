@@ -6,7 +6,7 @@ import { RouterLink } from 'vue-router'
 const slides = [
   {
     eyebrow: 'The 1% draw', a: 'Pay just ', hl: '1%', b: '. Win the whole thing.',
-    text: 'Join a 100-seat pool for 1% of the price. When it fills, one random winner takes it — everyone else is refunded to wallet.',
+    text: 'Book any product with a 1% advance. Win the pool and it’s yours. If not, pay the balance to buy it — or keep the 1% as wallet credit.',
     cta: { label: 'Explore 1% draws', to: '/shop?mode=draw' },
     grad: 'from-brand-600 to-brand-800',
     img: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&q=80&auto=format&fit=crop',

@@ -27,7 +27,7 @@ onMounted(async () => {
     <div class="card bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white">
       <p class="text-sm text-white/80">Wallet balance</p>
       <p class="font-display text-4xl font-extrabold">{{ money(balance) }}</p>
-      <p class="mt-2 text-xs text-white/80">Restricted credit — usable only on a 100% buy, up to 10% of each item's price. Cannot be used to enter a 1% draw.</p>
+      <p class="mt-2 text-xs text-white/80">Restricted credit — usable on any product you buy outright, up to 1% of that item's price. Cannot be used to pay a 1% booking advance.</p>
     </div>
 
     <h2 class="mb-2 mt-8 font-semibold">Transaction history</h2>

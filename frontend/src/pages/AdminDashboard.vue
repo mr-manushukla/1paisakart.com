@@ -90,8 +90,8 @@ async function saveFee() {
     <div v-show="tab === 'batches'" class="space-y-2">
       <div v-for="b in batches" :key="b.id" class="card flex items-center justify-between p-3">
         <div>
-          <p class="font-semibold">{{ b.product }} · batch #{{ b.batch_no }}</p>
-          <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} · entry {{ money(b.entry_price) }} · <span class="capitalize">{{ b.status }}</span></p>
+          <p class="font-semibold">{{ b.club }} · pool #{{ b.batch_no }}</p>
+          <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} seats · pooled {{ money(b.pooled) }} · <span class="capitalize">{{ b.status }}</span></p>
         </div>
         <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
       </div>

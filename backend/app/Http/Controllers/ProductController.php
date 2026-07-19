@@ -15,7 +15,7 @@ class ProductController extends Controller
         $products = Product::query()
             ->where('status', 'active')
             ->withAvg('reviews', 'rating')->withCount('reviews')
-            ->with(['category', 'shop', 'batches' => fn ($q) => $q->where('status', 'open')])
+            ->with(['category', 'shop'])
             ->when($request->filled('category'), fn ($q) => $q->whereHas('category', fn ($c) => $c->where('slug', $request->string('category'))))
             ->when($request->filled('q'), fn ($q) => $q->where('name', 'like', '%'.$request->string('q').'%'))
             ->when($request->input('mode') === 'draw', fn ($q) => $q->where('allow_draw', true))
@@ -30,8 +30,7 @@ class ProductController extends Controller
     {
         abort_if($product->status !== 'active', 404);
 
-        $product->load(['category', 'shop', 'batches' => fn ($q) => $q->where('status', 'open')])
-            ->loadAvg('reviews', 'rating')->loadCount('reviews');
+        $product->load(['category', 'shop'])->loadAvg('reviews', 'rating')->loadCount('reviews');
 
         return new ProductResource($product);
     }
@@ -44,22 +43,30 @@ class ProductController extends Controller
                 ->where('id', '!=', $product->id)
                 ->where('category_id', $product->category_id)
                 ->withAvg('reviews', 'rating')->withCount('reviews')
-                ->with(['category', 'batches' => fn ($q) => $q->where('status', 'open')])
+                ->with(['category'])
                 ->inRandomOrder()->limit(4)->get()
         );
     }
 
-    /** Transparency: the product's current open batch — fill + masked participants. */
+    /**
+     * Transparency: the open pool of this product's price-band club — fill,
+     * masked participants, and which product each of them booked.
+     */
     public function batch(Product $product): BatchResource|array
     {
-        $batch = $product->batches()
+        $club = $product->club();
+        if (! $club) {
+            return ['open' => false];
+        }
+
+        $batch = $club->batches()
             ->where('status', 'open')
-            ->with(['entries.user'])
+            ->with(['club', 'entries.user', 'entries.product'])
             ->latest('id')
             ->first();
 
         if (! $batch) {
-            return ['open' => false];
+            return ['open' => false, 'club' => ['id' => $club->id, 'label' => $club->label]];
         }
 
         return new BatchResource($batch);

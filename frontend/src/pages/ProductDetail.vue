@@ -112,7 +112,7 @@ async function joinDraw() {
         <!-- 100% buy -->
         <div v-if="product.allow_full_buy" class="card mt-6 p-4">
           <p class="text-sm font-semibold text-slate-700">Buy it outright</p>
-          <p class="text-xs text-slate-500">In stock: {{ product.stock }} · Wallet covers up to {{ money(product.max_wallet_applicable) }} (10%).</p>
+          <p class="text-xs text-slate-500">In stock: {{ product.stock }} · Wallet covers up to {{ money(product.max_wallet_applicable) }} (1%).</p>
           <div class="mt-3 flex flex-wrap items-center gap-2">
             <QuantityStepper v-model="qty" :max="Math.max(1, product.stock)" />
             <button class="btn-primary flex-1" :disabled="product.stock < 1" @click="buyNow">Buy now · {{ money(product.listed_price * qty) }}</button>
@@ -123,16 +123,23 @@ async function joinDraw() {
         <!-- 1% draw -->
         <div v-if="product.allow_draw" class="mt-4 rounded-2xl border-2 border-accent-500/30 bg-accent-500/5 p-4">
           <div class="flex items-center justify-between">
-            <p class="text-sm font-semibold text-accent-700">🎲 Join the 1% draw</p>
-            <span class="chip bg-accent-500 text-white">Win for {{ money(product.entry_price) }}</span>
+            <p class="text-sm font-semibold text-accent-700">🎲 Book with a 1% advance</p>
+            <span class="chip bg-accent-500 text-white">{{ money(product.entry_price) }} now</span>
           </div>
-          <p class="mt-1 text-xs text-slate-500">Pay 1% to grab a seat in a 100-person pool. Pool fills → one random winner keeps it. Not you? Full refund to wallet.</p>
+          <p v-if="product.open_batch?.club" class="mt-1 text-xs font-medium text-slate-600">
+            Club {{ product.open_batch.club.label }} · odds 1 in {{ product.open_batch.size }}
+          </p>
+          <p class="mt-1 text-xs text-slate-500">
+            <strong>Win</strong> and the product is yours — your 1% covers it (government taxes on the prize apply).
+            <strong>Didn't win?</strong> Either pay the remaining {{ money(product.listed_price - product.entry_price) }} to buy it,
+            or move your {{ money(product.entry_price) }} to your wallet.
+          </p>
           <div v-if="hasOpenPool" class="mt-3">
-            <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="batch.entry_price" />
+            <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="product.entry_price" />
           </div>
-          <p v-else class="mt-3 text-sm text-slate-500">No open pool yet — <span class="font-semibold text-accent-700">be the first to start one!</span></p>
+          <p v-else class="mt-3 text-sm text-slate-500">No open pool yet — <span class="font-semibold text-accent-700">be the first to book a seat!</span></p>
           <button class="btn-accent mt-3 w-full" :disabled="joining" @click="joinDraw">
-            {{ joining ? 'Joining…' : `Join draw for ${money(product.entry_price)}` }}
+            {{ joining ? 'Booking…' : `Book for ${money(product.entry_price)}` }}
           </button>
         </div>
 
@@ -150,15 +157,18 @@ async function joinDraw() {
     <section v-if="product.allow_draw && hasOpenPool" class="card p-6">
       <div class="mb-4 flex items-center justify-between">
         <div>
-          <h2 class="font-display text-xl font-bold">Who's in the pool <span class="text-slate-400">· batch #{{ batch.batch_no }}</span></h2>
-          <p class="text-sm text-slate-500">100% transparent — every seat is public. Updates live.</p>
+          <h2 class="font-display text-xl font-bold">Who's in the pool <span class="text-slate-400">· {{ batch.club?.label }} · pool #{{ batch.batch_no }}</span></h2>
+          <p class="text-sm text-slate-500">100% transparent — every seat is public, including which product each member booked. Updates live.</p>
         </div>
         <span class="chip bg-brand-50 text-brand-700">{{ batch.filled }}/{{ batch.size }} seats</span>
       </div>
       <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         <div v-for="p in batch.participants" :key="p.seat" class="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5 text-sm">
           <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{{ p.seat }}</span>
-          <span class="truncate text-slate-600">{{ p.name }}</span>
+          <span class="min-w-0">
+            <span class="block truncate text-slate-600">{{ p.name }}</span>
+            <span class="block truncate text-[11px] text-slate-400">{{ p.product }}</span>
+          </span>
         </div>
         <div v-for="n in (batch.size - batch.filled)" :key="'e' + n" class="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 px-2.5 py-1.5 text-sm text-slate-300">
           <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-slate-100 text-xs">·</span>

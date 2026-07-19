@@ -59,7 +59,7 @@ async function placeOrder() {
           <input v-model="applyWallet" type="checkbox" class="mt-1" />
           <span class="text-sm">
             <span class="font-semibold text-brand-700">Use wallet credit</span>
-            <span class="block text-slate-500">Balance {{ money(auth.walletBalance) }} · capped at 10% per item ({{ money(cart.walletCap) }} max here)</span>
+            <span class="block text-slate-500">Balance {{ money(auth.walletBalance) }} · capped at 1% per item ({{ money(cart.walletCap) }} max here)</span>
           </span>
         </label>
 

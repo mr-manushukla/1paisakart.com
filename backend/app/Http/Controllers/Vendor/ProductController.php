@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Vendor;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
-use App\Services\DrawService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -16,7 +15,7 @@ class ProductController extends Controller
     {
         return ProductResource::collection(
             $this->shop($request)->products()
-                ->with(['category', 'batches' => fn ($q) => $q->where('status', 'open')])
+                ->with(['category'])
                 ->latest('id')->paginate(20)
         );
     }
@@ -30,9 +29,7 @@ class ProductController extends Controller
         $data['slug'] = $this->uniqueSlug($data['name']);
         $product = Product::create($data);
 
-        if ($product->allow_draw) {
-            app(DrawService::class)->openBatch($product);
-        }
+        // Pools are club-scoped and open lazily on the first booking — nothing to create here.
 
         return new ProductResource($product->load('category'));
     }

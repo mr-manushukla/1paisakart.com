@@ -97,13 +97,17 @@ class DatabaseSeeder extends Seeder
             fn ($i) => $this->user("Customer $i", "customer$i@1paisakart.test", 'customer')
         );
 
-        $flagship = $products->firstWhere('name', 'Smart Watch Series X');
+        // Smart Watch (₹4,999) and Road Runner Shoes (₹2,499) both fall in the
+        // ₹1,001–₹5,000 club, so they share ONE pool — that's the club model.
+        $watch = $products->firstWhere('name', 'Smart Watch Series X');
+        $shoes = $products->firstWhere('name', 'Road Runner Shoes');
         $draw = app(DrawService::class);
-        $customers->take(42)->each(fn ($c) => $draw->enter($flagship, $c));
+        $customers->take(30)->each(fn ($c) => $draw->enter($watch, $c));
+        $customers->slice(30, 12)->each(fn ($c) => $draw->enter($shoes, $c));
 
         $this->seedReviews($products, $customers);
 
-        $this->command?->info('Seeded: admin, 2 vendors, '.$products->count().' products, 50 customers, 1 open draw (42/100), reviews.');
+        $this->command?->info('Seeded: admin, 2 vendors, '.$products->count().' products, 50 customers, reviews, and one ₹1,001–₹5,000 club pool at 42/100 (mixed products).');
     }
 
     /** A handful of realistic reviews per product (mixed 3–5★ reads more trustworthy than all-5★). */

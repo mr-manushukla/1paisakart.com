@@ -7,8 +7,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Str;
 
 /**
- * Public transparency view of a draw batch: how full the pool is and WHO is in it
- * (display names masked). Load `entries.user` before returning.
+ * Public transparency view of a club pool: how full it is and WHO is in it
+ * (names masked, plus the product each seat booked). Load `entries.user` +
+ * `entries.product` before returning.
  *
  * @mixin \App\Models\DrawBatch
  */
@@ -18,18 +19,24 @@ class BatchResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'club' => $this->whenLoaded('club', fn () => [
+                'id' => $this->club?->id,
+                'label' => $this->club?->label,
+            ]),
             'batch_no' => $this->batch_no,
             'size' => $this->size,
             'filled' => $this->filled_count,
             'remaining' => $this->size - $this->filled_count,
-            'entry_price' => $this->entry_price,   // paise
             'status' => $this->status,
+            'odds' => '1 in '.$this->size,
             'participants' => $this->whenLoaded('entries', fn () => $this->entries
                 ->sortBy('id')
                 ->values()
                 ->map(fn ($e, $i) => [
                     'seat' => $i + 1,
                     'name' => $this->mask($e->user?->name ?? 'Guest'),
+                    'product' => $e->product?->name,
+                    'advance' => $e->amount,   // paise — differs per product in the same club
                     'joined_at' => $e->created_at,
                     'status' => $e->status,
                 ])),

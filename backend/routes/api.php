@@ -37,6 +37,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Customer
     Route::middleware('role:customer')->group(function () {
         Route::post('/products/{product:slug}/enter-draw', [DrawController::class, 'enter']);
+        Route::get('/my-draws', [DrawController::class, 'myDraws']);
+        Route::post('/draw-entries/{entry}/purchase', [DrawController::class, 'purchase']); // Option A
+        Route::post('/draw-entries/{entry}/credit', [DrawController::class, 'credit']);     // Option B
         Route::post('/products/{product:slug}/reviews', [ReviewController::class, 'store']);
         Route::post('/checkout', [CheckoutController::class, 'store']);
         Route::get('/wallet', [WalletController::class, 'show']);
@@ -49,8 +52,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:vendor')->prefix('vendor')->group(function () {
         Route::apiResource('products', VendorProductController::class)->except(['show']);
         Route::get('/orders', [VendorSalesController::class, 'orders']);
-        Route::get('/batches', [VendorSalesController::class, 'batches']);
-        Route::post('/batches/{batch}/cancel', [VendorSalesController::class, 'cancelBatch']);
+        Route::get('/batches', [VendorSalesController::class, 'batches']); // read-only: pools are shared
     });
 
     // Admin

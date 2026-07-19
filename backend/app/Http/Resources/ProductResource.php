@@ -2,6 +2,8 @@
 
 namespace App\Http\Resources;
 
+use App\Models\Club;
+use App\Models\DrawBatch;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -10,9 +12,6 @@ class ProductResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // Present only when the caller eager-loaded open batches (avoids N+1 in lists).
-        $open = $this->relationLoaded('batches') ? $this->batches->firstWhere('status', 'open') : null;
-
         return [
             'id' => $this->id,
             'name' => $this->name,
@@ -39,13 +38,40 @@ class ProductResource extends JsonResource
                 'name' => $this->shop?->name,
                 'slug' => $this->shop?->slug,
             ]),
-            'open_batch' => $open ? [
-                'id' => $open->id,
-                'batch_no' => $open->batch_no,
-                'size' => $open->size,
-                'filled' => $open->filled_count,
-                'remaining' => $open->size - $open->filled_count,
-            ] : null,
+            'open_batch' => $this->openPool($request),
+        ];
+    }
+
+    /**
+     * Draw pools are club-scoped, so there's no per-product relation to eager load.
+     * Clubs + open pools are each fetched once per request and reused.
+     */
+    private function openPool(Request $request): ?array
+    {
+        if (! $this->allow_draw) {
+            return null;
+        }
+        if (! $request->attributes->has('draw_clubs')) {
+            $request->attributes->set('draw_clubs', Club::orderBy('min_price')->get());
+            $request->attributes->set('draw_open_batches', DrawBatch::where('status', 'open')->get()->keyBy('club_id'));
+        }
+
+        $club = $request->attributes->get('draw_clubs')
+            ->first(fn ($c) => $this->listed_price >= $c->min_price && $this->listed_price <= $c->max_price);
+        if (! $club) {
+            return null;
+        }
+
+        $batch = $request->attributes->get('draw_open_batches')->get($club->id);
+        $size = $batch?->size ?? (int) config('draw.batch_size', 100);
+        $filled = $batch?->filled_count ?? 0;
+
+        return [
+            'club' => ['id' => $club->id, 'label' => $club->label],
+            'batch_no' => $batch?->batch_no,
+            'size' => $size,
+            'filled' => $filled,
+            'remaining' => $size - $filled,
         ];
     }
 

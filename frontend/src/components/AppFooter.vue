@@ -19,9 +19,9 @@ import { RouterLink } from 'vue-router'
       <div>
         <h4 class="font-semibold">How it works</h4>
         <ul class="mt-2 space-y-1 text-sm text-slate-500">
-          <li>Pay 1%, join a 100-seat pool</li>
-          <li>Pool fills → 1 random winner</li>
-          <li>Everyone else refunded to wallet</li>
+          <li>Pay 1% to book a seat</li>
+          <li>Pool fills → 1 winner keeps it</li>
+          <li>Others: buy at the balance, or keep credit</li>
         </ul>
       </div>
       <div>

@@ -10,19 +10,20 @@ use Illuminate\Http\Request;
 
 class PlatformController extends Controller
 {
-    /** All draw batches across the platform. */
+    /** All club pools across the platform. */
     public function batches()
     {
-        return DrawBatch::with('product:id,name,slug')
+        return DrawBatch::with('club:id,label')
+            ->withSum('entries as pooled', 'amount')
             ->latest('id')->paginate(30)
             ->through(fn ($b) => [
                 'id' => $b->id,
-                'product' => $b->product?->name,
+                'club' => $b->club?->label,
                 'batch_no' => $b->batch_no,
                 'filled' => $b->filled_count,
                 'size' => $b->size,
                 'status' => $b->status,
-                'entry_price' => $b->entry_price,
+                'pooled' => (int) ($b->pooled ?? 0), // total advances held, paise
                 'drawn_at' => $b->drawn_at,
             ]);
     }

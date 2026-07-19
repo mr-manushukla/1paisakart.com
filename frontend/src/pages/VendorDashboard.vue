@@ -62,11 +62,6 @@ async function remove(p) {
   try { await api.delete(`/vendor/products/${p.id}`); toast('Deleted'); await loadProducts() }
   catch (e) { toast(apiError(e), 'error') }
 }
-async function cancelBatch(b) {
-  if (!confirm('Cancel this batch and refund all entries?')) return
-  try { await api.post(`/vendor/batches/${b.id}/cancel`); toast('Batch cancelled'); await loadBatches() }
-  catch (e) { toast(apiError(e), 'error') }
-}
 </script>
 
 <template>
@@ -130,14 +125,14 @@ async function cancelBatch(b) {
 
     <!-- Batches -->
     <div v-show="tab === 'batches'" class="space-y-2">
+      <p class="text-sm text-slate-500">Club pools that contain bookings for your products. Pools are shared across vendors, so only an admin can cancel one.</p>
       <div v-for="b in batches" :key="b.id" class="card flex items-center justify-between p-3">
         <div>
-          <p class="font-semibold">{{ b.product }} · batch #{{ b.batch_no }}</p>
-          <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} · entry {{ money(b.entry_price) }} · <span class="capitalize">{{ b.status }}</span></p>
+          <p class="font-semibold">{{ b.club }} · pool #{{ b.batch_no }}</p>
+          <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} seats · {{ b.my_bookings }} of yours · <span class="capitalize">{{ b.status }}</span></p>
         </div>
-        <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
       </div>
-      <p v-if="!batches.length" class="card p-8 text-center text-slate-500">No draw batches yet.</p>
+      <p v-if="!batches.length" class="card p-8 text-center text-slate-500">No club pools with your products yet.</p>
     </div>
   </div>
 </template>

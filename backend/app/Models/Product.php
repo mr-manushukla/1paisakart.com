@@ -34,8 +34,14 @@ class Product extends Model
 
     public function shop(): BelongsTo { return $this->belongsTo(Shop::class); }
     public function category(): BelongsTo { return $this->belongsTo(Category::class); }
-    public function batches(): HasMany { return $this->hasMany(DrawBatch::class); }
+    public function drawEntries(): HasMany { return $this->hasMany(DrawEntry::class); }
     public function reviews(): HasMany { return $this->hasMany(Review::class); }
+
+    /** The price-band club this product falls into (pools are club-scoped). */
+    public function club(): ?Club
+    {
+        return Club::forPrice($this->listed_price);
+    }
 
     /** True if the user has an order (buy or draw win) containing this product — gates reviews. */
     public function purchasedBy(User $user): bool
@@ -57,8 +63,13 @@ class Product extends Model
         return intdiv($this->listed_price * (int) config('draw.wallet_cap_pct', 10), 100);
     }
 
+    /** The currently open pool for this product's club (shared with other products in the band). */
     public function openBatch(): ?DrawBatch
     {
-        return $this->batches()->where('status', 'open')->latest('id')->first();
+        $club = $this->club();
+
+        return $club
+            ? $club->batches()->where('status', 'open')->latest('id')->first()
+            : null;
     }
 }
