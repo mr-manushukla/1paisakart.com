@@ -22,9 +22,12 @@ const badge = {
   refunded: ['Refunded', 'bg-slate-100 text-slate-600'],
 }
 
+const summary = ref(null)
+
 async function load() {
   const { data } = await api.get('/my-draws')
   entries.value = data.data
+  summary.value = data.summary
 }
 onMounted(async () => { try { await load() } finally { loading.value = false } })
 
@@ -54,6 +57,29 @@ async function moveToWallet(e) {
   <div class="mx-auto max-w-3xl">
     <h1 class="mb-1 font-display text-2xl font-bold">My draws</h1>
     <p class="mb-6 text-sm text-slate-500">Your 1% bookings. Win and the product is yours — otherwise choose to buy it or move your advance to your wallet.</p>
+
+    <!-- Participation at a glance -->
+    <div v-if="summary && summary.bookings" class="card mb-5 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+      <div>
+        <p class="font-display text-2xl font-extrabold text-brand-700">{{ summary.pools_joined }}</p>
+        <p class="text-xs text-slate-500">Pools joined</p>
+      </div>
+      <div>
+        <p class="font-display text-2xl font-extrabold text-brand-700">{{ summary.products }}</p>
+        <p class="text-xs text-slate-500">Products booked</p>
+      </div>
+      <div>
+        <p class="font-display text-2xl font-extrabold text-accent-600">{{ summary.won }}</p>
+        <p class="text-xs text-slate-500">Won</p>
+      </div>
+      <div>
+        <p class="font-display text-2xl font-extrabold text-slate-700">{{ money(summary.total_advanced) }}</p>
+        <p class="text-xs text-slate-500">Total advanced</p>
+      </div>
+      <div v-if="summary.awaiting_choice" class="col-span-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-4">
+        <strong>{{ summary.awaiting_choice }}</strong> booking{{ summary.awaiting_choice > 1 ? 's need' : ' needs' }} your choice — buy at the balance, or move the advance to your wallet.
+      </div>
+    </div>
 
     <div v-if="loading" class="card h-40 animate-pulse bg-slate-50" />
     <div v-else-if="!entries.length" class="card p-10 text-center text-slate-500">

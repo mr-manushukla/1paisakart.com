@@ -38,4 +38,22 @@ class User extends Authenticatable
     public function drawEntries(): HasMany { return $this->hasMany(DrawEntry::class); }
     public function walletTransactions(): HasMany { return $this->hasMany(WalletTransaction::class); }
     public function wishlists(): HasMany { return $this->hasMany(Wishlist::class); }
+
+    /** Draw participation at a glance — same numbers for the customer and for admin. */
+    public function drawSummary(): array
+    {
+        $e = $this->drawEntries()->get(['id', 'product_id', 'batch_id', 'amount', 'status']);
+
+        return [
+            'pools_joined' => $e->pluck('batch_id')->unique()->count(),
+            'bookings' => $e->count(),
+            'products' => $e->pluck('product_id')->unique()->count(),
+            'total_advanced' => (int) $e->sum('amount'),   // paise
+            'active' => $e->where('status', 'active')->count(),
+            'won' => $e->where('status', 'won')->count(),
+            'awaiting_choice' => $e->where('status', 'lost_pending')->count(),
+            'converted' => $e->where('status', 'converted')->count(),
+            'credited' => $e->where('status', 'credited')->count(),
+        ];
+    }
 }

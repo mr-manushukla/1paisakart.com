@@ -30,14 +30,14 @@ class DrawController extends Controller
         ];
     }
 
-    /** The signed-in customer's bookings, newest first. */
+    /** The signed-in customer's own bookings, newest first, with a participation summary. */
     public function myDraws(Request $request)
     {
+        $user = $request->user();
+
         return DrawEntryResource::collection(
-            $request->user()->drawEntries()
-                ->with(['product', 'batch.club'])
-                ->latest('id')->paginate(20)
-        );
+            $user->drawEntries()->with(['product', 'batch.club'])->latest('id')->paginate(20)
+        )->additional(['summary' => $user->drawSummary()]);
     }
 
     /** Option A — pay the remaining 99% and take the booked product. */

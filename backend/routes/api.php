@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\PlatformController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
 use App\Http\Controllers\AuthController;
@@ -63,6 +64,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('categories', AdminCategoryController::class)->except(['show']);
         Route::get('/vendors', [AdminVendorController::class, 'index']);
         Route::post('/vendors', [AdminVendorController::class, 'store']);
+        Route::get('/customers', [AdminCustomerController::class, 'index']);
+        Route::get('/customers/{user}/draws', [AdminCustomerController::class, 'draws']);
         Route::get('/batches', [PlatformController::class, 'batches']);
         Route::post('/batches/{batch}/cancel', [PlatformController::class, 'cancelBatch']);
         Route::get('/settings', [PlatformController::class, 'settings']);

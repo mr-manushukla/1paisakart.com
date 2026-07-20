@@ -13,12 +13,38 @@ const fee = ref(0)
 const newCat = ref('')
 const vendorForm = ref({ name: '', email: '', password: '', shop_name: '' })
 
+// Customer pool-participation lookup
+const customers = ref([])
+const custQ = ref('')
+const selected = ref(null)     // { customer, summary, entries }
+const loadingCust = ref(false)
+
+const statusLabel = {
+  active: 'In the pool', won: 'Won', lost_pending: 'Awaiting choice',
+  converted: 'Bought at balance', credited: 'Moved to wallet', refunded: 'Refunded',
+}
+
+async function loadCustomers() {
+  loadingCust.value = true
+  try {
+    const { data } = await api.get('/admin/customers', { params: { q: custQ.value || undefined } })
+    customers.value = data.data
+  } catch (e) { toast(apiError(e), 'error') } finally { loadingCust.value = false }
+}
+
+async function viewCustomer(c) {
+  try {
+    const { data } = await api.get(`/admin/customers/${c.id}/draws`)
+    selected.value = { customer: data.customer, summary: data.summary, entries: data.data }
+  } catch (e) { toast(apiError(e), 'error') }
+}
+
 async function loadCats() { categories.value = (await api.get('/admin/categories')).data }
 async function loadVendors() { vendors.value = (await api.get('/admin/vendors')).data }
 async function loadBatches() { batches.value = (await api.get('/admin/batches')).data.data }
 async function loadSettings() { fee.value = (await api.get('/admin/settings')).data.platform_fee_pct }
 
-onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings()]))
+onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers()]))
 
 async function addCat() {
   if (!newCat.value) return
@@ -50,7 +76,7 @@ async function saveFee() {
     <h1 class="mb-6 font-display text-2xl font-bold">Admin dashboard</h1>
 
     <div class="mb-6 flex gap-2 border-b border-slate-100">
-      <button v-for="t in ['categories', 'vendors', 'batches', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['categories', 'vendors', 'customers', 'batches', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
     </div>
 
     <!-- Categories -->
@@ -83,6 +109,65 @@ async function saveFee() {
           <span class="chip bg-brand-50 text-brand-700">{{ v.products }} products</span>
         </div>
         <p v-if="!vendors.length" class="card p-8 text-center text-slate-500">No vendors yet.</p>
+      </div>
+    </div>
+
+    <!-- Customers: which pools each has participated in -->
+    <div v-show="tab === 'customers'" class="grid gap-6 lg:grid-cols-[360px_1fr]">
+      <div class="space-y-3">
+        <form class="flex gap-2" @submit.prevent="loadCustomers">
+          <input v-model="custQ" class="input" placeholder="Search name or email…" />
+          <button class="btn-primary">Search</button>
+        </form>
+        <div v-if="loadingCust" class="card h-32 animate-pulse bg-slate-50" />
+        <div v-else class="space-y-2">
+          <button
+            v-for="c in customers"
+            :key="c.id"
+            class="card flex w-full items-center justify-between p-3 text-left transition hover:border-brand-300"
+            :class="selected?.customer?.id === c.id ? 'border-brand-500 bg-brand-50/40' : ''"
+            @click="viewCustomer(c)"
+          >
+            <span class="min-w-0">
+              <span class="block truncate font-semibold">{{ c.name }}</span>
+              <span class="block truncate text-xs text-slate-500">{{ c.email }}</span>
+            </span>
+            <span class="chip flex-none" :class="c.bookings ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-400'">
+              {{ c.bookings }} booking{{ c.bookings === 1 ? '' : 's' }}
+            </span>
+          </button>
+          <p v-if="!customers.length" class="card p-6 text-center text-sm text-slate-500">No customers match.</p>
+        </div>
+      </div>
+
+      <div>
+        <p v-if="!selected" class="card p-10 text-center text-slate-500">Select a customer to see the pools they've participated in.</p>
+        <div v-else class="space-y-4">
+          <div class="card p-4">
+            <p class="font-display text-lg font-bold">{{ selected.customer.name }}</p>
+            <p class="text-sm text-slate-500">{{ selected.customer.email }} · wallet {{ money(selected.customer.wallet_balance) }}</p>
+            <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div><p class="font-display text-xl font-bold text-brand-700">{{ selected.summary.pools_joined }}</p><p class="text-xs text-slate-500">Pools joined</p></div>
+              <div><p class="font-display text-xl font-bold text-brand-700">{{ selected.summary.products }}</p><p class="text-xs text-slate-500">Products</p></div>
+              <div><p class="font-display text-xl font-bold text-accent-600">{{ selected.summary.won }}</p><p class="text-xs text-slate-500">Won</p></div>
+              <div><p class="font-display text-xl font-bold">{{ money(selected.summary.total_advanced) }}</p><p class="text-xs text-slate-500">Advanced</p></div>
+            </div>
+          </div>
+
+          <div v-if="selected.entries.length" class="card divide-y divide-slate-100">
+            <div v-for="e in selected.entries" :key="e.id" class="flex items-center justify-between gap-3 px-4 py-3">
+              <div class="min-w-0">
+                <p class="truncate font-medium">{{ e.product?.name }}</p>
+                <p class="text-xs text-slate-500">{{ e.pool?.club }} · pool #{{ e.pool?.batch_no }} · {{ e.pool?.filled }}/{{ e.pool?.size }} seats</p>
+              </div>
+              <div class="flex-none text-right">
+                <p class="text-sm font-semibold">{{ money(e.advance) }}</p>
+                <span class="chip bg-slate-100 text-slate-600">{{ statusLabel[e.status] || e.status }}</span>
+              </div>
+            </div>
+          </div>
+          <p v-else class="card p-8 text-center text-slate-500">This customer hasn't joined any pool yet.</p>
+        </div>
       </div>
     </div>
 
