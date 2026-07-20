@@ -81,7 +81,8 @@ async function joinDraw() {
     <div class="card h-96 animate-pulse bg-slate-50" />
   </div>
 
-  <div v-else-if="product" class="space-y-8">
+  <!-- pb-28 on mobile keeps content clear of the fixed buy bar -->
+  <div v-else-if="product" class="space-y-8 pb-28 md:pb-0">
     <div class="grid gap-8 md:grid-cols-2">
       <!-- Gallery -->
       <div class="card p-4">
@@ -123,13 +124,13 @@ async function joinDraw() {
           <div class="mt-3 grid gap-3" :class="bothOptions ? 'sm:grid-cols-2' : 'grid-cols-1'">
             <div v-if="product.allow_full_buy">
               <button class="btn-primary w-full" :disabled="product.stock < 1" @click="buyNow">
-                Buy now · {{ money(product.listed_price * qty) }}
+                Buy Now · {{ money(product.listed_price * qty) }}
               </button>
               <p class="mt-1 text-center text-[11px] text-slate-500">Own it today — pay the full price</p>
             </div>
             <div v-if="product.draw_eligible">
               <button class="btn-accent w-full" :disabled="joining" @click="joinDraw">
-                {{ joining ? 'Booking…' : `Book for ${money(product.entry_price)}` }}
+                {{ joining ? 'Booking…' : `Buy with 1% Advance · ${money(product.entry_price)}` }}
               </button>
               <p class="mt-1 text-center text-[11px] text-slate-500">Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}</p>
             </div>
@@ -192,5 +193,41 @@ async function joinDraw() {
 
     <!-- Cross-sell -->
     <RelatedProducts :slug="slug" />
+
+    <!-- Mobile sticky buy bar (Flipkart-style): cart · 1% advance · full price -->
+    <div class="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 py-2 shadow-[0_-2px_10px_rgba(0,0,0,0.06)] backdrop-blur md:hidden">
+      <div class="flex items-stretch gap-2">
+        <button
+          v-if="product.allow_full_buy"
+          class="flex w-12 flex-none flex-col items-center justify-center rounded-xl border border-slate-200 text-slate-600 disabled:opacity-40"
+          :disabled="product.stock < 1"
+          aria-label="Add to cart"
+          @click="addToCart"
+        >
+          <span class="text-lg leading-none">🛒</span>
+          <span class="text-[9px] leading-tight">Add</span>
+        </button>
+
+        <button
+          v-if="product.draw_eligible"
+          class="flex flex-1 flex-col items-center justify-center rounded-xl border border-accent-500 bg-white px-2 py-1.5 text-accent-700 disabled:opacity-50"
+          :disabled="joining"
+          @click="joinDraw"
+        >
+          <span class="text-sm font-bold leading-tight">{{ joining ? 'Booking…' : 'Buy with 1% Advance' }}</span>
+          <span class="text-[11px] leading-tight text-slate-500">{{ money(product.entry_price) }} now</span>
+        </button>
+
+        <button
+          v-if="product.allow_full_buy"
+          class="flex flex-1 flex-col items-center justify-center rounded-xl bg-brand-600 px-2 py-1.5 text-white disabled:opacity-50"
+          :disabled="product.stock < 1"
+          @click="buyNow"
+        >
+          <span class="text-sm font-bold leading-tight">Buy Now</span>
+          <span class="text-[11px] leading-tight text-white/85">at {{ money(product.listed_price * qty) }}</span>
+        </button>
+      </div>
+    </div>
   </div>
 </template>

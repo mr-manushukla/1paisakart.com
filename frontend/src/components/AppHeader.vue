@@ -6,6 +6,7 @@ import { useCartStore } from '../stores/cart'
 import { useWishlistStore } from '../stores/wishlist'
 import { money } from '../lib/money'
 import { toast } from '../lib/toast'
+import CategoryStrip from './CategoryStrip.vue'
 
 const auth = useAuthStore()
 const cart = useCartStore()
@@ -36,6 +37,7 @@ async function logout() {
         <span class="text-brand-600">1paisa</span><span class="text-accent-500">kart</span>
       </RouterLink>
 
+      <!-- Desktop search (mobile gets its own full-width row below) -->
       <form class="relative hidden flex-1 md:block" @submit.prevent="search">
         <input v-model="q" class="input pl-10" placeholder="Search products…" />
         <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
@@ -78,6 +80,22 @@ async function logout() {
           </div>
         </div>
       </nav>
+    </div>
+
+    <!-- Mobile: full-width search + category strip (Flipkart-style) -->
+    <div class="md:hidden">
+      <form class="relative px-3 pb-2" @submit.prevent="search">
+        <input
+          v-model="q"
+          type="search"
+          enterkeyhint="search"
+          class="w-full rounded-full border border-brand-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
+          placeholder="Search for Products"
+          aria-label="Search for products"
+        />
+        <span class="pointer-events-none absolute left-6 top-3 text-brand-600">🔍</span>
+      </form>
+      <CategoryStrip />
     </div>
   </header>
 </template>
