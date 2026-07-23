@@ -23,7 +23,7 @@ class DrawEntryResource extends JsonResource
                 'name' => $this->product?->name,
                 'slug' => $this->product?->slug,
                 'image' => $this->product?->image,
-                'listed_price' => $this->product?->listed_price,
+                'listed_price' => $this->productPrice(),
                 'max_wallet_applicable' => $this->product?->maxWalletApplicable(),
             ]),
             'pool' => $this->whenLoaded('batch', fn () => [

@@ -18,12 +18,15 @@ class CheckoutController extends Controller
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:99'],
             'apply_wallet' => ['boolean'],
+            'coupon_code' => ['nullable', 'string', 'max:40'],
         ]);
 
         $order = $this->checkout->place(
             $request->user(),
             $data['items'],
             (bool) ($data['apply_wallet'] ?? false),
+            null,
+            $data['coupon_code'] ?? null,
         );
 
         return new OrderResource($order->load('items.product'));

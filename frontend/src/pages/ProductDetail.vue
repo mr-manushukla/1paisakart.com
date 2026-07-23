@@ -6,6 +6,7 @@ import { money } from '../lib/money'
 import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { toast, apiError } from '../lib/toast'
+import { payAndFulfil } from '../lib/razorpay'
 import ImageGallery from '../components/ImageGallery.vue'
 import DrawProgress from '../components/DrawProgress.vue'
 import StarRating from '../components/StarRating.vue'
@@ -64,11 +65,23 @@ async function joinDraw() {
   if (!auth.isCustomer) return toast('Only customer accounts can join draws.', 'error')
   joining.value = true
   try {
-    const { data } = await api.post(`/products/${slug}/enter-draw`)
-    toast(data.message)
+    // The advance is real money — always through the gateway, never wallet.
+    const result = await payAndFulfil({ intent: 'draw', product_slug: slug })
+    if (!result) {
+      // Dismissed checkout — keep it in the cart so they can finish later.
+      cart.add(product.value, 1, 'draw')
+      return toast('Saved to your cart — you can complete the booking later', 'error')
+    }
+
+    cart.remove(`draw:${product.value.id}`)
+    toast(result.result?.won || result.won
+      ? 'The pool filled and you won! The product is yours. 🎉'
+      : 'Your seat is booked. Watch the pool fill up.')
     await Promise.all([fetchBatch(), fetchProduct(), auth.refresh()])
   } catch (e) {
-    toast(apiError(e), 'error')
+    // Payment failed — don't lose the intent, park it in the cart.
+    cart.add(product.value, 1, 'draw')
+    toast(apiError(e, e?.message || 'Payment failed') + ' — saved to your cart', 'error')
   } finally {
     joining.value = false
   }
@@ -109,19 +122,26 @@ async function joinDraw() {
           <StarRating :value="product.rating" />
           <span class="text-sm text-slate-500">{{ product.rating }} · {{ product.reviews_count }} reviews</span>
         </div>
-        <p class="mt-4 font-display text-3xl font-extrabold text-brand-700">{{ money(product.listed_price) }}</p>
+        <div class="mt-4 flex flex-wrap items-baseline gap-2">
+          <span v-if="product.discount_pct" class="font-display text-xl font-bold text-green-700">↓{{ product.discount_pct }}%</span>
+          <span v-if="product.mrp" class="text-xl text-slate-400 line-through">{{ money(product.mrp) }}</span>
+          <span class="font-display text-3xl font-extrabold text-brand-700">{{ money(product.listed_price) }}</span>
+        </div>
 
         <!-- Purchase: both buying options together -->
         <div class="card mt-6 p-4">
           <p class="text-xs text-slate-500">In stock: {{ product.stock }} · Wallet covers up to {{ money(product.max_wallet_applicable) }} (1%).</p>
 
           <div v-if="product.allow_full_buy" class="mt-3 flex items-center gap-2">
+            <span class="text-sm text-slate-500 md:hidden">Qty</span>
             <QuantityStepper v-model="qty" :max="Math.max(1, product.stock)" />
-            <button class="btn-ghost flex-1" :disabled="product.stock < 1" @click="addToCart">Add to cart</button>
+            <!-- Add to cart lives in the sticky bar on mobile -->
+            <button class="btn-ghost hidden flex-1 md:block" :disabled="product.stock < 1" @click="addToCart">Add to cart</button>
           </div>
 
-          <!-- The two ways to buy -->
-          <div class="mt-3 grid gap-3" :class="bothOptions ? 'sm:grid-cols-2' : 'grid-cols-1'">
+          <!-- The two ways to buy. Hidden on mobile — the sticky bottom bar owns
+               these actions there, so they aren't rendered twice. -->
+          <div class="mt-3 hidden gap-3 md:grid" :class="bothOptions ? 'sm:grid-cols-2' : 'grid-cols-1'">
             <div v-if="product.allow_full_buy">
               <button class="btn-primary w-full" :disabled="product.stock < 1" @click="buyNow">
                 Buy Now · {{ money(product.listed_price * qty) }}
@@ -132,7 +152,9 @@ async function joinDraw() {
               <button class="btn-accent w-full" :disabled="joining" @click="joinDraw">
                 {{ joining ? 'Booking…' : `Buy with 1% Advance · ${money(product.entry_price)}` }}
               </button>
-              <p class="mt-1 text-center text-[11px] text-slate-500">Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}</p>
+              <p class="mt-1 text-center text-[11px] text-slate-500">
+Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}
+              </p>
             </div>
           </div>
 
@@ -146,6 +168,11 @@ async function joinDraw() {
               <strong>Win</strong> and the product is yours — your 1% covers it (government taxes on the prize apply).
               <strong>Didn't win?</strong> Either pay the remaining {{ money(product.listed_price - product.entry_price) }} to buy it,
               or move your {{ money(product.entry_price) }} to your wallet.
+            </p>
+
+            <p class="mt-2 rounded-lg bg-white/60 px-2.5 py-2 text-[11px] text-slate-500">
+              One seat per item. To take more seats in this pool, book a <strong>different</strong> product
+              in the same price range — you can still win only one item, and any extra seats refund to your wallet.
             </p>
             <div v-if="hasOpenPool" class="mt-2">
               <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="product.entry_price" />

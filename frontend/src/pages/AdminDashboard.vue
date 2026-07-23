@@ -9,6 +9,9 @@ const categories = ref([])
 const vendors = ref([])
 const batches = ref([])
 const fee = ref(0)
+const coupons = ref([])
+const cBlank = () => ({ code: '', type: 'percent', value: 10, minOrderR: '', maxDiscountR: '', usage_limit: '', per_user_limit: 1, ends_at: '' })
+const cForm = ref(cBlank())
 
 const newCat = ref('')
 const vendorForm = ref({ name: '', email: '', password: '', shop_name: '' })
@@ -43,8 +46,33 @@ async function loadCats() { categories.value = (await api.get('/admin/categories
 async function loadVendors() { vendors.value = (await api.get('/admin/vendors')).data }
 async function loadBatches() { batches.value = (await api.get('/admin/batches')).data.data }
 async function loadSettings() { fee.value = (await api.get('/admin/settings')).data.platform_fee_pct }
+async function loadCoupons() { coupons.value = (await api.get('/admin/coupons')).data }
 
-onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers()]))
+async function createCoupon() {
+  const f = cForm.value
+  try {
+    await api.post('/admin/coupons', {
+      code: f.code || null, type: f.type, value: Number(f.value),
+      min_order: f.minOrderR ? Math.round(Number(f.minOrderR) * 100) : 0,
+      max_discount: f.maxDiscountR ? Math.round(Number(f.maxDiscountR) * 100) : null,
+      usage_limit: f.usage_limit ? Number(f.usage_limit) : null,
+      per_user_limit: Number(f.per_user_limit) || 1,
+      ends_at: f.ends_at || null,
+    })
+    toast('Platform coupon created'); cForm.value = cBlank(); await loadCoupons()
+  } catch (e) { toast(apiError(e), 'error') }
+}
+async function toggleCoupon(c) {
+  try { const { data } = await api.post(`/admin/coupons/${c.id}/toggle`); toast(data.message); await loadCoupons() }
+  catch (e) { toast(apiError(e), 'error') }
+}
+async function deleteCoupon(c) {
+  if (!confirm(`Delete coupon ${c.code}?`)) return
+  try { await api.delete(`/admin/coupons/${c.id}`); toast('Deleted'); await loadCoupons() }
+  catch (e) { toast(apiError(e), 'error') }
+}
+
+onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers(), loadCoupons()]))
 
 async function addCat() {
   if (!newCat.value) return
@@ -76,7 +104,7 @@ async function saveFee() {
     <h1 class="mb-6 font-display text-2xl font-bold">Admin dashboard</h1>
 
     <div class="mb-6 flex gap-2 border-b border-slate-100">
-      <button v-for="t in ['categories', 'vendors', 'customers', 'batches', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['categories', 'vendors', 'customers', 'coupons', 'batches', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
     </div>
 
     <!-- Categories -->
@@ -168,6 +196,56 @@ async function saveFee() {
           </div>
           <p v-else class="card p-8 text-center text-slate-500">This customer hasn't joined any pool yet.</p>
         </div>
+      </div>
+    </div>
+
+    <!-- Coupons: platform-wide, plus oversight of every vendor coupon -->
+    <div v-show="tab === 'coupons'" class="grid gap-6 lg:grid-cols-[320px_1fr]">
+      <form class="card h-fit space-y-3 p-4" @submit.prevent="createCoupon">
+        <h2 class="font-semibold">New platform coupon</h2>
+        <p class="text-xs text-slate-500">Valid across every vendor's products.</p>
+        <input v-model="cForm.code" class="input uppercase" placeholder="CODE (optional)" />
+        <div class="flex gap-2">
+          <select v-model="cForm.type" class="input flex-1">
+            <option value="percent">% off</option>
+            <option value="fixed">₹ off</option>
+          </select>
+          <label class="flex-1 text-xs text-slate-500">
+            {{ cForm.type === 'percent' ? 'Percent' : 'Amount (₹)' }}
+            <input v-model="cForm.value" type="number" min="1" class="input" required />
+          </label>
+        </div>
+        <div class="flex gap-2">
+          <label class="flex-1 text-xs text-slate-500">Min order (₹)<input v-model="cForm.minOrderR" type="number" min="0" class="input" placeholder="0" /></label>
+          <label v-if="cForm.type === 'percent'" class="flex-1 text-xs text-slate-500">Max discount (₹)<input v-model="cForm.maxDiscountR" type="number" min="1" class="input" placeholder="no cap" /></label>
+        </div>
+        <div class="flex gap-2">
+          <label class="flex-1 text-xs text-slate-500">Total uses<input v-model="cForm.usage_limit" type="number" min="1" class="input" placeholder="unlimited" /></label>
+          <label class="flex-1 text-xs text-slate-500">Per customer<input v-model="cForm.per_user_limit" type="number" min="1" class="input" /></label>
+        </div>
+        <label class="block text-xs text-slate-500">Expires<input v-model="cForm.ends_at" type="date" class="input" /></label>
+        <button class="btn-primary w-full">Create</button>
+      </form>
+
+      <div class="space-y-2">
+        <div v-for="c in coupons" :key="c.id" class="card flex items-center justify-between p-3">
+          <div class="min-w-0">
+            <p class="font-semibold">
+              {{ c.code }}
+              <span class="ml-1 font-normal text-slate-500">{{ c.type === 'percent' ? c.value + '% off' : money(c.value) + ' off' }}</span>
+            </p>
+            <p class="text-xs text-slate-500">
+              {{ c.scope }} · used {{ c.used_count }}<template v-if="c.usage_limit">/{{ c.usage_limit }}</template>
+              <template v-if="c.min_order"> · min {{ money(c.min_order) }}</template>
+            </p>
+          </div>
+          <div class="flex flex-none items-center gap-2">
+            <span class="chip" :class="c.live ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500'">{{ c.live ? 'Live' : 'Inactive' }}</span>
+            <button class="btn-ghost px-2 py-1 text-xs" @click="toggleCoupon(c)">{{ c.active ? 'Disable' : 'Enable' }}</button>
+            <button class="px-2 text-rose-500 hover:text-rose-700" @click="deleteCoupon(c)">✕</button>
+          </div>
+        </div>
+        <p v-if="!coupons.length" class="card p-8 text-center text-slate-500">No coupons yet.</p>
       </div>
     </div>
 

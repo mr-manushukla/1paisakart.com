@@ -135,7 +135,8 @@ class ProductController extends Controller
             'brand' => ['nullable', 'string', 'max:120'],
             'category_id' => ['nullable', 'exists:categories,id'],
             'description' => ['nullable', 'string'],
-            'listed_price' => ['required', 'integer', 'min:100'], // ≥ ₹1, in paise
+            'listed_price' => ['required', 'integer', 'min:100'], // MRP, in paise
+            'sale_price' => ['nullable', 'integer', 'min:1', 'lt:listed_price'],
             'stock' => ['required', 'integer', 'min:0'],
             'allow_full_buy' => ['boolean'],
             'specs' => ['nullable', 'array', 'max:20'],

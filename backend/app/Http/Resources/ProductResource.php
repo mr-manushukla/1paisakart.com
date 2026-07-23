@@ -22,11 +22,16 @@ class ProductResource extends JsonResource
             'images' => $this->gallery(),
             'specs' => $this->specs ?? [],
             'in_wishlist' => in_array($this->id, $this->wishedIds($request), true),
-            'listed_price' => $this->listed_price,            // paise
+            // `listed_price` is what the customer pays (the effective price) so
+            // existing clients keep working; `mrp` is the struck-through original.
+            'listed_price' => $this->effectivePrice(),        // paise — actual price
+            'mrp' => $this->onSale() ? $this->listed_price : null,
+            'discount_pct' => $this->discountPct(),
             'stock' => $this->stock,
             'allow_full_buy' => $this->allow_full_buy,
             'draw_eligible' => $this->isDrawEligible($request), // 1% draw is global, not per-product
             'entry_price' => $this->isDrawEligible($request) ? $this->entryPrice() : null,
+            'max_seats_per_user' => (int) config('draw.max_entries_per_user', 10),
             'max_wallet_applicable' => $this->maxWalletApplicable(),
             'rating' => $this->reviews_avg_rating !== null ? round((float) $this->reviews_avg_rating, 1) : null,
             'reviews_count' => $this->reviews_count ?? 0,
@@ -55,7 +60,7 @@ class ProductResource extends JsonResource
         }
 
         return $request->attributes->get('draw_clubs')
-            ->first(fn ($c) => $this->listed_price >= $c->min_price && $this->listed_price <= $c->max_price);
+            ->first(fn ($c) => $this->effectivePrice() >= $c->min_price && $this->effectivePrice() <= $c->max_price);
     }
 
     private function isDrawEligible(Request $request): bool

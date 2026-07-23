@@ -3,6 +3,7 @@ import { RouterView } from 'vue-router'
 import AppHeader from './components/AppHeader.vue'
 import AppFooter from './components/AppFooter.vue'
 import ToastHost from './components/ToastHost.vue'
+import BuyOptionsModal from './components/BuyOptionsModal.vue'
 </script>
 
 <template>
@@ -13,5 +14,6 @@ import ToastHost from './components/ToastHost.vue'
     </main>
     <AppFooter />
     <ToastHost />
+    <BuyOptionsModal />
   </div>
 </template>

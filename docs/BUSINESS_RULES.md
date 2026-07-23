@@ -21,6 +21,15 @@ Draw pools are **per price-band club**, *not* per product — so two different p
 share one pool (e.g. a ₹1L phone and a ₹1L laptop). Bands: `100–1000`, `1001–5000`, then **₹5,000 steps
 up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolved from its `listed_price`.
 
+### Seats
+- Booking one product = **one seat**. A customer may hold **several seats in the same pool**, but each
+  must be a **different product** in that price band — the **same item can never be booked twice** by the
+  same customer in the same pool (enforced by a unique index on `batch_id + user_id + product_id`).
+- `max_entries_per_user` caps how many distinct items one customer may hold in a pool, so no single
+  buyer can corner a pool and have most of it refunded.
+- A winner receives **exactly one item**. Any other seats that winner holds are credited **straight to
+  their wallet** (no choice window); other participants get the normal choice below.
+
 ### Flow
 1. **Secure your entry** — customer pays a **1% advance** (`floor(listed_price / 100)`) to book a seat.
    The advance is **real money only** — wallet credit can never pay it. Participation requires the advance.
@@ -58,7 +67,9 @@ up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolv
 
 ## 7. Invariants (enforced + tested)
 - `sum(wallet_transactions.amount for user) == users.wallet_balance` always.
-- A drawn pool has exactly **1** `won` entry; the rest are `lost_pending` (never auto-credited at draw time).
+- A drawn pool has exactly **1** `won` entry; other participants are `lost_pending` (never auto-credited
+  at draw time), while any additional seats held by the winner are `credited`.
+- No customer holds two seats for the same product in one pool.
 - The winner's order is for **the product that entry booked**, with `payable == advance`.
 - No booking advance is ever paid from wallet credit.
 - Wallet applied to a single item ≤ `floor(item_price * wallet_cap_pct / 100)`.

@@ -105,6 +105,14 @@ class DatabaseSeeder extends Seeder
         $customers->take(30)->each(fn ($c) => $draw->enter($watch, $c));
         $customers->slice(30, 12)->each(fn ($c) => $draw->enter($shoes, $c));
 
+        // A couple of demo discounts + coupons so the UI has something to show.
+        $products->firstWhere('name', 'Smart Watch Series X')?->update(['sale_price' => 3899 * 100]);   // ₹4,999 -> ₹3,899
+        $products->firstWhere('name', 'Premium Cotton T-Shirt')?->update(['sale_price' => 449 * 100]);  // ₹599 -> ₹449
+
+        \App\Models\Coupon::create(['shop_id' => $shop1->id, 'code' => 'RAVI10', 'type' => 'percent', 'value' => 10, 'max_discount' => 50000, 'per_user_limit' => 1]);
+        \App\Models\Coupon::create(['shop_id' => $shop2->id, 'code' => 'MEENA100', 'type' => 'fixed', 'value' => 10000, 'min_order' => 50000, 'per_user_limit' => 1]);
+        \App\Models\Coupon::create(['shop_id' => null, 'code' => 'WELCOME5', 'type' => 'percent', 'value' => 5, 'max_discount' => 20000, 'per_user_limit' => 1]);
+
         $this->seedReviews($products, $customers);
 
         $this->command?->info('Seeded: admin, 2 vendors, '.$products->count().' products, 50 customers, reviews, and one ₹1,001–₹5,000 club pool at 42/100 (mixed products).');

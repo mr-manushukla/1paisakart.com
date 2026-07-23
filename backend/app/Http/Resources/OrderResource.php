@@ -15,6 +15,8 @@ class OrderResource extends JsonResource
             'status' => $this->status,
             'source' => $this->source,
             'subtotal' => $this->subtotal,
+            'discount' => $this->discount,
+            'coupon' => $this->whenLoaded('coupon', fn () => $this->coupon?->code),
             'wallet_applied' => $this->wallet_applied,
             'payable' => $this->payable,
             'created_at' => $this->created_at,

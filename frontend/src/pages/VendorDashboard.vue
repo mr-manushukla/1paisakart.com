@@ -13,13 +13,17 @@ const products = ref([])
 const orders = ref([])
 const batches = ref([])
 const categories = ref([])
+const coupons = ref([])
+const couponBlank = () => ({ code: '', type: 'percent', value: 10, minOrderR: '', maxDiscountR: '', usage_limit: '', per_user_limit: 1, ends_at: '' })
+const couponForm = ref(couponBlank())
+const couponSaving = ref(false)
 
 // Common product-information fields (rendered as a spec table on the product page).
 const SPEC_PRESETS = ['Model', 'Colour', 'Size', 'Material', 'Weight', 'Dimensions', 'Care', 'Shipping']
 
 const blank = () => ({
   id: null, name: '', brand: '', category_id: '', description: '',
-  priceR: '', stock: 0, allow_full_buy: true, status: 'active', specs: [],
+  priceR: '', salePriceR: '', stock: 0, allow_full_buy: true, status: 'active', specs: [],
 })
 const form = ref(blank())
 const current = ref(null)   // full product being edited (for the image manager)
@@ -28,10 +32,41 @@ const saving = ref(false)
 async function loadProducts() { products.value = (await api.get('/vendor/products')).data.data }
 async function loadOrders() { orders.value = (await api.get('/vendor/orders')).data.data }
 async function loadBatches() { batches.value = (await api.get('/vendor/batches')).data.data }
+async function loadCoupons() { coupons.value = (await api.get('/vendor/coupons')).data }
+
+async function saveCoupon() {
+  couponSaving.value = true
+  const f = couponForm.value
+  try {
+    await api.post('/vendor/coupons', {
+      code: f.code || null,
+      type: f.type,
+      value: Number(f.value),
+      min_order: f.minOrderR ? Math.round(Number(f.minOrderR) * 100) : 0,
+      max_discount: f.maxDiscountR ? Math.round(Number(f.maxDiscountR) * 100) : null,
+      usage_limit: f.usage_limit ? Number(f.usage_limit) : null,
+      per_user_limit: Number(f.per_user_limit) || 1,
+      ends_at: f.ends_at || null,
+    })
+    toast('Coupon created')
+    couponForm.value = couponBlank()
+    await loadCoupons()
+  } catch (e) { toast(apiError(e), 'error') } finally { couponSaving.value = false }
+}
+
+async function toggleCoupon(c) {
+  try { await api.put(`/vendor/coupons/${c.id}`, { type: c.type, value: c.value, active: !c.active }); await loadCoupons() }
+  catch (e) { toast(apiError(e), 'error') }
+}
+async function deleteCoupon(c) {
+  if (!confirm(`Delete coupon ${c.code}?`)) return
+  try { await api.delete(`/vendor/coupons/${c.id}`); toast('Deleted'); await loadCoupons() }
+  catch (e) { toast(apiError(e), 'error') }
+}
 
 onMounted(async () => {
   categories.value = (await api.get('/categories')).data
-  await Promise.all([loadProducts(), loadOrders(), loadBatches()])
+  await Promise.all([loadProducts(), loadOrders(), loadBatches(), loadCoupons()])
 })
 
 function edit(p) {
@@ -41,7 +76,8 @@ function edit(p) {
     brand: p.brand || '',
     category_id: p.category?.slug ? categories.value.find((c) => c.slug === p.category.slug)?.id : '',
     description: p.description || '',
-    priceR: p.listed_price / 100,
+    priceR: (p.mrp ?? p.listed_price) / 100,
+    salePriceR: p.mrp ? p.listed_price / 100 : '',
     stock: p.stock,
     allow_full_buy: p.allow_full_buy,
     status: 'active',
@@ -63,6 +99,7 @@ async function save() {
     category_id: form.value.category_id || null,
     description: form.value.description,
     listed_price: Math.round(Number(form.value.priceR) * 100),
+    sale_price: form.value.salePriceR ? Math.round(Number(form.value.salePriceR) * 100) : null,
     stock: Number(form.value.stock),
     allow_full_buy: form.value.allow_full_buy,
     status: form.value.status,
@@ -102,7 +139,7 @@ async function remove(p) {
     <p class="mb-6 text-sm text-slate-500">{{ auth.user?.shop?.name }}</p>
 
     <div class="mb-6 flex gap-2 border-b border-slate-100">
-      <button v-for="t in ['products', 'orders', 'batches']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['products', 'coupons', 'orders', 'batches']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
     </div>
 
     <!-- Products -->
@@ -126,8 +163,9 @@ async function remove(p) {
             </div>
             <textarea v-model="form.description" class="input" rows="3" placeholder="Description" />
             <div class="flex gap-2">
-              <label class="flex-1 text-xs text-slate-500">Price (₹) *<input v-model="form.priceR" type="number" min="1" step="0.01" class="input" required /></label>
-              <label class="flex-1 text-xs text-slate-500">Stock<input v-model="form.stock" type="number" min="0" class="input" /></label>
+              <label class="flex-1 text-xs text-slate-500">MRP (₹) *<input v-model="form.priceR" type="number" min="1" step="0.01" class="input" required /></label>
+              <label class="flex-1 text-xs text-slate-500">Sale price (₹)<input v-model="form.salePriceR" type="number" min="1" step="0.01" class="input" placeholder="optional" /></label>
+              <label class="w-24 flex-none text-xs text-slate-500">Stock<input v-model="form.stock" type="number" min="0" class="input" /></label>
             </div>
             <label class="flex items-center gap-2 text-sm"><input v-model="form.allow_full_buy" type="checkbox" /> Available to buy outright (100%)</label>
             <p class="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-800">
@@ -189,6 +227,61 @@ async function remove(p) {
           </div>
         </div>
         <p v-if="!products.length" class="card p-8 text-center text-slate-500">No products yet — add one.</p>
+      </div>
+    </div>
+
+    <!-- Coupons -->
+    <div v-show="tab === 'coupons'" class="grid gap-6 lg:grid-cols-[340px_1fr]">
+      <form class="card h-fit space-y-3 p-4" @submit.prevent="saveCoupon">
+        <h2 class="font-semibold">New coupon</h2>
+        <p class="text-xs text-slate-500">Valid only on your own products. Leave the code blank to generate one.</p>
+        <input v-model="couponForm.code" class="input uppercase" placeholder="CODE (optional)" />
+        <div class="flex gap-2">
+          <select v-model="couponForm.type" class="input flex-1">
+            <option value="percent">% off</option>
+            <option value="fixed">₹ off</option>
+          </select>
+          <label class="flex-1 text-xs text-slate-500">
+            {{ couponForm.type === 'percent' ? 'Percent' : 'Amount (₹)' }}
+            <input v-model="couponForm.value" type="number" min="1" :max="couponForm.type === 'percent' ? 100 : undefined" class="input" required />
+          </label>
+        </div>
+        <div class="flex gap-2">
+          <label class="flex-1 text-xs text-slate-500">Min order (₹)<input v-model="couponForm.minOrderR" type="number" min="0" class="input" placeholder="0" /></label>
+          <label v-if="couponForm.type === 'percent'" class="flex-1 text-xs text-slate-500">Max discount (₹)<input v-model="couponForm.maxDiscountR" type="number" min="1" class="input" placeholder="no cap" /></label>
+        </div>
+        <div class="flex gap-2">
+          <label class="flex-1 text-xs text-slate-500">Total uses<input v-model="couponForm.usage_limit" type="number" min="1" class="input" placeholder="unlimited" /></label>
+          <label class="flex-1 text-xs text-slate-500">Per customer<input v-model="couponForm.per_user_limit" type="number" min="1" class="input" /></label>
+        </div>
+        <label class="block text-xs text-slate-500">Expires<input v-model="couponForm.ends_at" type="date" class="input" /></label>
+        <button class="btn-primary w-full" :disabled="couponSaving">{{ couponSaving ? 'Saving…' : 'Create coupon' }}</button>
+      </form>
+
+      <div class="space-y-2">
+        <div v-for="c in coupons" :key="c.id" class="card flex items-center justify-between p-3">
+          <div class="min-w-0">
+            <p class="font-semibold">
+              {{ c.code }}
+              <span class="ml-1 font-normal text-slate-500">
+                {{ c.type === 'percent' ? c.value + '% off' : money(c.value) + ' off' }}
+                <template v-if="c.max_discount"> (max {{ money(c.max_discount) }})</template>
+              </span>
+            </p>
+            <p class="text-xs text-slate-500">
+              <template v-if="c.min_order">Min {{ money(c.min_order) }} · </template>
+              Used {{ c.used_count }}<template v-if="c.usage_limit">/{{ c.usage_limit }}</template> ·
+              {{ c.per_user_limit }} per customer
+              <template v-if="c.ends_at"> · ends {{ new Date(c.ends_at).toLocaleDateString('en-IN') }}</template>
+            </p>
+          </div>
+          <div class="flex flex-none items-center gap-2">
+            <span class="chip" :class="c.live ? 'bg-brand-50 text-brand-700' : 'bg-slate-100 text-slate-500'">{{ c.live ? 'Live' : 'Inactive' }}</span>
+            <button class="btn-ghost px-2 py-1 text-xs" @click="toggleCoupon(c)">{{ c.active ? 'Disable' : 'Enable' }}</button>
+            <button class="px-2 text-rose-500 hover:text-rose-700" @click="deleteCoupon(c)">✕</button>
+          </div>
+        </div>
+        <p v-if="!coupons.length" class="card p-8 text-center text-slate-500">No coupons yet — create one.</p>
       </div>
     </div>
 

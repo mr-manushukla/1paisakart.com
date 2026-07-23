@@ -13,7 +13,7 @@ class DrawController extends Controller
 {
     public function __construct(private DrawService $draw) {}
 
-    /** Pay the 1% advance to book a seat in the product's club pool. */
+    /** Pay the 1% advance to book a seat for this product in its club pool. */
     public function enter(Request $request, Product $product): array
     {
         $entry = $this->draw->enter($product, $request->user());

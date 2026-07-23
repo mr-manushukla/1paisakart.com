@@ -5,6 +5,7 @@ import api from '../lib/api'
 import { money } from '../lib/money'
 import { useAuthStore } from '../stores/auth'
 import { toast, apiError } from '../lib/toast'
+import { payAndFulfil } from '../lib/razorpay'
 import ProductImage from '../components/ProductImage.vue'
 
 const auth = useAuthStore()
@@ -36,11 +37,15 @@ const deadline = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: 'nume
 async function payBalance(e) {
   busy.value = e.id
   try {
-    const { data } = await api.post(`/draw-entries/${e.id}/purchase`, { apply_wallet: true })
-    toast(`Order #${data.data.id} placed 🎉`)
+    const result = await payAndFulfil({ intent: 'balance', entry_id: e.id, apply_wallet: true })
+    if (!result) return toast('Payment cancelled', 'error')
+
+    toast('Payment successful — the product is yours 🎉')
     await Promise.all([load(), auth.refresh()])
     router.push({ name: 'orders' })
-  } catch (err) { toast(apiError(err), 'error') } finally { busy.value = null }
+  } catch (err) {
+    toast(apiError(err, err?.message || 'Payment failed'), 'error')
+  } finally { busy.value = null }
 }
 
 async function moveToWallet(e) {

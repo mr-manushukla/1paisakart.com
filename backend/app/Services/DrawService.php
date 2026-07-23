@@ -29,8 +29,13 @@ class DrawService
 {
     public function __construct(private WalletService $wallet) {}
 
-    /** Book a 1% advance on a product, taking a seat in its club pool. */
-    public function enter(Product $product, User $user): DrawEntry
+    /**
+     * Book the 1% advance on a product — one seat in that product's club pool.
+     *
+     * A customer may hold several seats in the same pool, but each must be a
+     * DIFFERENT product in that price band; the same item can't be booked twice.
+     */
+    public function enter(Product $product, User $user, ?Payment $payment = null): DrawEntry
     {
         // The draw is global: any active product priced inside a club band qualifies.
         if ($product->status !== 'active') {
@@ -44,9 +49,8 @@ class DrawService
         if ($amount < 1) {
             throw new BusinessException('This product’s price is too low to book.');
         }
-
-        return DB::transaction(function () use ($club, $product, $user, $amount) {
-            // Lock the open pool so seat counting serialises and the 100th seat settles once.
+        return DB::transaction(function () use ($club, $product, $user, $amount, $payment) {
+            // Lock the open pool so seat counting serialises and the last seat settles once.
             $batch = DrawBatch::where('club_id', $club->id)
                 ->where('status', 'open')
                 ->lockForUpdate()
@@ -57,26 +61,40 @@ class DrawService
                 throw new BusinessException('That pool just filled — please try again.');
             }
 
-            $max = (int) config('draw.max_entries_per_user', 1);
-            if ($batch->entries()->where('user_id', $user->id)->count() >= $max) {
-                throw new BusinessException('You have already booked a seat in this club pool.');
+            // One seat per product: you can add more seats to this pool, but only
+            // by booking a DIFFERENT item in the same price band.
+            if ($batch->entries()->where('user_id', $user->id)->where('product_id', $product->id)->exists()) {
+                throw new BusinessException('You have already booked this item in this pool. Choose a different product in the same price range to add another seat.');
+            }
+
+            // Secondary guard: how many distinct items one customer may hold in a pool.
+            $max = (int) config('draw.max_entries_per_user', 10);
+            $held = $batch->entries()->where('user_id', $user->id)->count();
+            if ($held >= $max) {
+                throw new BusinessException("You can hold at most {$max} seats in one pool (you already have {$held}).");
             }
 
             $entry = $batch->entries()->create([
                 'user_id' => $user->id,
                 'product_id' => $product->id,
                 'amount' => $amount,
+                'product_price' => $product->effectivePrice(), // locked in at booking time
                 'status' => 'active',
             ]);
 
-            // Advance is real money (gateway stubbed to instant success for now).
-            Payment::create([
-                'entry_id' => $entry->id,
-                'amount' => $amount,
-                'gateway' => 'stub',
-                'status' => 'success',
-                'ref' => 'advance-'.$entry->id,
-            ]);
+            // Advance is real money. When Razorpay captured it, that payment row
+            // already exists; a stub is written only for direct service-level
+            // bookings (seeding, admin, tests).
+            if (! $payment) {
+                Payment::create([
+                    'user_id' => $user->id,
+                    'entry_id' => $entry->id,
+                    'amount' => $amount,
+                    'gateway' => 'stub',
+                    'status' => 'success',
+                    'ref' => 'advance-'.$entry->id,
+                ]);
+            }
 
             $batch->increment('filled_count');
             $batch->refresh();
@@ -112,7 +130,7 @@ class DrawService
                 return; // already settled/cancelled — exactly-once guard
             }
 
-            $entries = $batch->entries()->where('status', 'active')->with('product')->get();
+            $entries = $batch->entries()->where('status', 'active')->with(['product', 'user'])->get();
             $winner = $entries[random_int(0, $entries->count() - 1)];
 
             $order = $this->fulfilWinnerOrder($winner);
@@ -123,6 +141,23 @@ class DrawService
                 if ($entry->id === $winner->id) {
                     continue;
                 }
+
+                // A winner takes exactly ONE item. Any other seats they hold are
+                // refunded to wallet straight away — no choice window for those.
+                if ($entry->user_id === $winner->user_id) {
+                    $this->wallet->credit(
+                        $entry->user,
+                        $entry->amount,
+                        'draw_refund',
+                        'draw_entry',
+                        $entry->id,
+                        'Extra seat refunded — you already won this pool',
+                    );
+                    $entry->update(['status' => 'credited']);
+
+                    continue;
+                }
+
                 $entry->update(['status' => 'lost_pending', 'choice_deadline_at' => $deadline]);
             }
 
@@ -135,9 +170,9 @@ class DrawService
     }
 
     /** Option A — pay the remaining 99% and take the booked product. */
-    public function convertToPurchase(DrawEntry $entry, bool $applyWallet = false): Order
+    public function convertToPurchase(DrawEntry $entry, bool $applyWallet = false, ?Payment $payment = null): Order
     {
-        return DB::transaction(function () use ($entry, $applyWallet) {
+        return DB::transaction(function () use ($entry, $applyWallet, $payment) {
             $entry = DrawEntry::whereKey($entry->id)->lockForUpdate()->firstOrFail();
             if (! $entry->awaitingChoice()) {
                 throw new BusinessException('This booking is not awaiting a choice.');
@@ -151,7 +186,7 @@ class DrawService
                 throw new BusinessException("“{$product->name}” is out of stock.");
             }
 
-            $balance = max(0, $product->listed_price - $entry->amount);
+            $balance = max(0, $entry->productPrice() - $entry->amount);
             $walletApplied = $applyWallet
                 ? $this->wallet->applicableForPurchase($entry->user, min($product->maxWalletApplicable(), $balance))
                 : 0;
@@ -159,7 +194,7 @@ class DrawService
 
             $order = Order::create([
                 'user_id' => $entry->user_id,
-                'subtotal' => $product->listed_price,
+                'subtotal' => $product->effectivePrice(),
                 'wallet_applied' => $walletApplied,
                 'payable' => $payable,          // the 1% advance is already paid and adjusted
                 'status' => 'paid',
@@ -168,16 +203,17 @@ class DrawService
             $order->items()->create([
                 'product_id' => $product->id,
                 'qty' => 1,
-                'unit_price' => $product->listed_price,
-                'line_total' => $product->listed_price,
+                'unit_price' => $product->effectivePrice(),
+                'line_total' => $product->effectivePrice(),
             ]);
             $product->decrement('stock');
 
             if ($walletApplied > 0) {
                 $this->wallet->debit($entry->user, $walletApplied, 'purchase_debit', 'order', $order->id, "Wallet used on order #{$order->id}");
             }
-            if ($payable > 0) {
+            if ($payable > 0 && ! $payment) {
                 Payment::create([
+                    'user_id' => $entry->user_id,
                     'order_id' => $order->id,
                     'amount' => $payable,
                     'gateway' => 'stub',
@@ -268,7 +304,7 @@ class DrawService
 
         $order = Order::create([
             'user_id' => $winner->user_id,
-            'subtotal' => $product->listed_price,
+            'subtotal' => $product->effectivePrice(),
             'wallet_applied' => 0,
             'payable' => $winner->amount,
             'status' => 'fulfilled',
@@ -277,8 +313,8 @@ class DrawService
         $order->items()->create([
             'product_id' => $product->id,
             'qty' => 1,
-            'unit_price' => $product->listed_price,
-            'line_total' => $product->listed_price,
+            'unit_price' => $product->effectivePrice(),
+            'line_total' => $product->effectivePrice(),
         ]);
         Product::whereKey($product->id)->where('stock', '>', 0)->decrement('stock');
 

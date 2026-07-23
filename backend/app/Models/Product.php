@@ -10,19 +10,47 @@ class Product extends Model
 {
     protected $fillable = [
         'shop_id', 'category_id', 'name', 'brand', 'slug', 'description', 'image', 'images', 'specs',
-        'listed_price', 'stock', 'allow_full_buy', 'platform_fee_pct', 'status',
+        'listed_price', 'sale_price', 'stock', 'allow_full_buy', 'platform_fee_pct', 'status',
     ];
 
     protected function casts(): array
     {
         return [
             'listed_price' => 'integer',
+            'sale_price' => 'integer',
             'stock' => 'integer',
             'allow_full_buy' => 'boolean',
             'platform_fee_pct' => 'decimal:2',
             'images' => 'array',
             'specs' => 'array',
         ];
+    }
+
+    /**
+     * What the customer actually pays: the sale price when the vendor has
+     * discounted, otherwise the listed price (MRP). This is the ONLY price money
+     * should be calculated from — it drives the 1% advance and the club band too.
+     */
+    public function effectivePrice(): int
+    {
+        return $this->sale_price && $this->sale_price < $this->listed_price
+            ? (int) $this->sale_price
+            : (int) $this->listed_price;
+    }
+
+    public function onSale(): bool
+    {
+        return $this->effectivePrice() < $this->listed_price;
+    }
+
+    /** Whole-percent saving off the MRP, or null when not discounted. */
+    public function discountPct(): ?int
+    {
+        if (! $this->onSale() || $this->listed_price < 1) {
+            return null;
+        }
+
+        return (int) round(($this->listed_price - $this->effectivePrice()) / $this->listed_price * 100);
     }
 
     /** Gallery images (falls back to the single primary image). */
@@ -36,10 +64,10 @@ class Product extends Model
     public function drawEntries(): HasMany { return $this->hasMany(DrawEntry::class); }
     public function reviews(): HasMany { return $this->hasMany(Review::class); }
 
-    /** The price-band club this product falls into (pools are club-scoped). */
+    /** The price-band club this product falls into — based on what it actually sells for. */
     public function club(): ?Club
     {
-        return Club::forPrice($this->listed_price);
+        return Club::forPrice($this->effectivePrice());
     }
 
     /**
@@ -59,16 +87,16 @@ class Product extends Model
             ->exists();
     }
 
-    /** Cost of one draw entry = entry_pct% of listed price (paise), floored. */
+    /** Cost of one draw entry = entry_pct% of the effective (discounted) price, floored. */
     public function entryPrice(): int
     {
-        return intdiv($this->listed_price * (int) config('draw.entry_pct', 1), 100);
+        return intdiv($this->effectivePrice() * (int) config('draw.entry_pct', 1), 100);
     }
 
     /** Max wallet credit applicable per unit on a 100% buy = wallet_cap_pct% of price. */
     public function maxWalletApplicable(): int
     {
-        return intdiv($this->listed_price * (int) config('draw.wallet_cap_pct', 10), 100);
+        return intdiv($this->effectivePrice() * (int) config('draw.wallet_cap_pct', 10), 100);
     }
 
     /** The currently open pool for this product's club (shared with other products in the band). */

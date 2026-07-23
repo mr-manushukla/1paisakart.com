@@ -15,18 +15,23 @@ use Illuminate\Support\Facades\DB;
  */
 class CheckoutService
 {
-    public function __construct(private WalletService $wallet) {}
+    public function __construct(
+        private WalletService $wallet,
+        private CouponService $coupons,
+    ) {}
 
     /**
      * @param  array<int, array{product_id:int, qty:int}>  $lines
+     * @param  Payment|null  $payment  already-captured gateway payment (Razorpay); a
+     *                                 stub row is written only when this is null.
      */
-    public function place(User $user, array $lines, bool $applyWallet): Order
+    public function place(User $user, array $lines, bool $applyWallet, ?Payment $payment = null, ?string $couponCode = null): Order
     {
         if (empty($lines)) {
             throw new BusinessException('Cart is empty.');
         }
 
-        return DB::transaction(function () use ($user, $lines, $applyWallet) {
+        return DB::transaction(function () use ($user, $lines, $applyWallet, $payment, $couponCode) {
             $subtotal = 0;
             $walletCap = 0;   // sum of per-item 10% caps
             $prepared = [];
@@ -43,29 +48,42 @@ class CheckoutService
                     throw new BusinessException("“{$product->name}” is out of stock.");
                 }
 
-                $lineTotal = $product->listed_price * $qty;
+                $lineTotal = $product->effectivePrice() * $qty;
                 $subtotal += $lineTotal;
                 $walletCap += $product->maxWalletApplicable() * $qty;
                 $prepared[] = [$product, $qty, $lineTotal];
             }
 
-            $walletApplied = $applyWallet ? $this->wallet->applicableForPurchase($user, $walletCap) : 0;
-            $payable = $subtotal - $walletApplied;
+            // Coupon first, then wallet on what's left.
+            $applied = $this->coupons->tryApply($couponCode, $user, $lines);
+            $discount = $applied['discount'] ?? 0;
+            $afterDiscount = max(0, $subtotal - $discount);
+
+            $walletApplied = $applyWallet
+                ? min($this->wallet->applicableForPurchase($user, $walletCap), $afterDiscount)
+                : 0;
+            $payable = $afterDiscount - $walletApplied;
 
             $order = Order::create([
                 'user_id' => $user->id,
                 'subtotal' => $subtotal,
+                'coupon_id' => $applied['coupon']->id ?? null,
+                'discount' => $discount,
                 'wallet_applied' => $walletApplied,
                 'payable' => $payable,
                 'status' => 'paid',
                 'source' => 'buy',
             ]);
 
+            if ($applied) {
+                $this->coupons->redeem($applied['coupon'], $user, $discount, $order->id);
+            }
+
             foreach ($prepared as [$product, $qty, $lineTotal]) {
                 $order->items()->create([
                     'product_id' => $product->id,
                     'qty' => $qty,
-                    'unit_price' => $product->listed_price,
+                    'unit_price' => $product->effectivePrice(),
                     'line_total' => $lineTotal,
                 ]);
                 $product->decrement('stock', $qty);
@@ -75,8 +93,9 @@ class CheckoutService
                 $this->wallet->debit($user, $walletApplied, 'purchase_debit', 'order', $order->id, "Wallet used on order #{$order->id}");
             }
 
-            if ($payable > 0) {
+            if ($payable > 0 && ! $payment) {
                 Payment::create([
+                    'user_id' => $user->id,
                     'order_id' => $order->id,
                     'amount' => $payable,
                     'gateway' => 'stub',

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\PlatformController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
@@ -8,8 +9,11 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DrawController;
 use App\Http\Controllers\OrderController;
+use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\CouponController;
+use App\Http\Controllers\Vendor\CouponController as VendorCouponController;
 use App\Http\Controllers\Vendor\ProductController as VendorProductController;
 use App\Http\Controllers\Vendor\SalesController as VendorSalesController;
 use App\Http\Controllers\WalletController;
@@ -38,6 +42,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Customer
     Route::middleware('role:customer')->group(function () {
         Route::post('/products/{product:slug}/enter-draw', [DrawController::class, 'enter']);
+        Route::post('/coupons/validate', [CouponController::class, 'validateCode']);
+        Route::post('/payments/order', [PaymentController::class, 'createOrder']);
+        Route::post('/payments/verify', [PaymentController::class, 'verify']);
         Route::get('/my-draws', [DrawController::class, 'myDraws']);
         Route::post('/draw-entries/{entry}/purchase', [DrawController::class, 'purchase']); // Option A
         Route::post('/draw-entries/{entry}/credit', [DrawController::class, 'credit']);     // Option B
@@ -55,6 +62,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/products/{product}/images', [VendorProductController::class, 'uploadImages']);
         Route::delete('/products/{product}/images', [VendorProductController::class, 'deleteImage']);
         Route::post('/products/{product}/images/primary', [VendorProductController::class, 'setPrimaryImage']);
+        Route::get('/coupons', [VendorCouponController::class, 'index']);
+        Route::post('/coupons', [VendorCouponController::class, 'store']);
+        Route::put('/coupons/{coupon}', [VendorCouponController::class, 'update']);
+        Route::delete('/coupons/{coupon}', [VendorCouponController::class, 'destroy']);
         Route::get('/orders', [VendorSalesController::class, 'orders']);
         Route::get('/batches', [VendorSalesController::class, 'batches']); // read-only: pools are shared
     });
@@ -64,6 +75,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('categories', AdminCategoryController::class)->except(['show']);
         Route::get('/vendors', [AdminVendorController::class, 'index']);
         Route::post('/vendors', [AdminVendorController::class, 'store']);
+        Route::get('/coupons', [AdminCouponController::class, 'index']);
+        Route::post('/coupons', [AdminCouponController::class, 'store']);
+        Route::post('/coupons/{coupon}/toggle', [AdminCouponController::class, 'toggle']);
+        Route::delete('/coupons/{coupon}', [AdminCouponController::class, 'destroy']);
         Route::get('/customers', [AdminCustomerController::class, 'index']);
         Route::get('/customers/{user}/draws', [AdminCustomerController::class, 'draws']);
         Route::get('/batches', [PlatformController::class, 'batches']);
