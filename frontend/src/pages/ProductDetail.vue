@@ -7,8 +7,10 @@ import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { toast, apiError } from '../lib/toast'
 import { payAndFulfil } from '../lib/razorpay'
+import { openBuyOptions } from '../lib/buyOptions'
 import ImageGallery from '../components/ImageGallery.vue'
 import DrawProgress from '../components/DrawProgress.vue'
+import PoolSeatMap from '../components/PoolSeatMap.vue'
 import StarRating from '../components/StarRating.vue'
 import QuantityStepper from '../components/QuantityStepper.vue'
 import WishlistHeart from '../components/WishlistHeart.vue'
@@ -52,9 +54,26 @@ onMounted(async () => {
 })
 onUnmounted(() => clearInterval(poll))
 
+/**
+ * Same behaviour as the product cards: ask which way they want to buy, unless
+ * only one option applies — then asking would just be an extra tap. Drives both
+ * the desktop button and the mobile sticky bar.
+ */
 function addToCart() {
-  cart.add(product.value, qty.value)
-  toast(`${qty.value} × ${product.value.name} added to cart`)
+  const canBuy = product.value.allow_full_buy && product.value.stock > 0
+  const canDraw = !!product.value.draw_eligible
+
+  if (canBuy && canDraw) return openBuyOptions(product.value, qty.value)
+
+  if (canBuy) {
+    cart.add(product.value, qty.value, 'buy')
+    return toast(`${qty.value} × ${product.value.name} added to cart`)
+  }
+  if (canDraw) {
+    cart.add(product.value, 1, 'draw')
+    return toast('1% booking added to cart')
+  }
+  toast('This product isn’t available right now', 'error')
 }
 function buyNow() {
   cart.add(product.value, qty.value)
@@ -200,17 +219,26 @@ Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}
         </div>
         <span class="chip bg-brand-50 text-brand-700">{{ batch.filled }}/{{ batch.size }} seats</span>
       </div>
-      <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-        <div v-for="p in batch.participants" :key="p.seat" class="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5 text-sm">
-          <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{{ p.seat }}</span>
-          <span class="min-w-0">
-            <span class="block truncate text-slate-600">{{ p.name }}</span>
-            <span class="block truncate text-[11px] text-slate-400">{{ p.product }}</span>
-          </span>
-        </div>
-        <div v-for="n in (batch.size - batch.filled)" :key="'e' + n" class="flex items-center gap-2 rounded-lg border border-dashed border-slate-200 px-2.5 py-1.5 text-sm text-slate-300">
-          <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-slate-100 text-xs">·</span>
-          <span>open seat</span>
+
+      <PoolSeatMap
+        :size="batch.size"
+        :filled="batch.filled"
+        :participants="batch.participants"
+        :winner-seat="batch.winner_seat"
+        :entry-price="product.entry_price"
+      />
+
+      <!-- The map is the summary; this stays the readable record of who booked what. -->
+      <div v-if="batch.participants?.length" class="mt-5 border-t border-slate-100 pt-4">
+        <p class="mb-2 text-sm font-semibold text-slate-600">Seats taken</p>
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+          <div v-for="p in batch.participants" :key="p.seat" class="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50/60 px-2.5 py-1.5 text-sm">
+            <span class="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{{ p.seat }}</span>
+            <span class="min-w-0">
+              <span class="block truncate text-slate-600">{{ p.name }}</span>
+              <span class="block truncate text-[11px] text-slate-400">{{ p.product }}</span>
+            </span>
+          </div>
         </div>
       </div>
     </section>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { buyOptionsProduct, closeBuyOptions } from '../lib/buyOptions'
+import { buyOptionsProduct, buyOptionsQty, closeBuyOptions } from '../lib/buyOptions'
 import { useCartStore } from '../stores/cart'
 import { money } from '../lib/money'
 import { toast } from '../lib/toast'
@@ -16,9 +16,11 @@ const canBuy = computed(() => !!product.value?.allow_full_buy && product.value?.
 const canDraw = computed(() => !!product.value?.draw_eligible)
 const alreadyBooked = computed(() => product.value && cart.has('draw', product.value.id))
 
+const qty = computed(() => buyOptionsQty.value)
+
 function addBuy() {
-  cart.add(product.value, 1, 'buy')
-  toast(`${product.value.name} added to cart`)
+  cart.add(product.value, qty.value, 'buy')
+  toast(`${qty.value > 1 ? qty.value + ' × ' : ''}${product.value.name} added to cart`)
   closeBuyOptions()
 }
 function addDraw() {
@@ -69,20 +71,8 @@ watch(product, async (p) => { if (p) { await new Promise((r) => setTimeout(r)); 
 
       <p class="mt-4 text-sm font-semibold text-slate-700">How would you like to buy this?</p>
 
+      <!-- 1% first: it's the headline offer, so it gets the top slot. -->
       <div class="mt-3 space-y-2">
-        <!-- Full price -->
-        <button
-          v-if="canBuy"
-          class="flex w-full items-center justify-between rounded-xl border-2 border-brand-600 bg-brand-50/50 px-4 py-3 text-left transition hover:bg-brand-50"
-          @click="addBuy"
-        >
-          <span>
-            <span class="block font-semibold text-brand-800">Buy Now</span>
-            <span class="block text-xs text-slate-500">Own it today — pay the full price</span>
-          </span>
-          <span class="flex-none font-bold text-brand-700">{{ money(product.listed_price) }}</span>
-        </button>
-
         <!-- 1% advance -->
         <button
           v-if="canDraw"
@@ -96,6 +86,22 @@ watch(product, async (p) => { if (p) { await new Promise((r) => setTimeout(r)); 
             </span>
           </span>
           <span class="flex-none font-bold text-accent-700">{{ money(product.entry_price) }}</span>
+        </button>
+
+        <!-- Full price -->
+        <button
+          v-if="canBuy"
+          class="flex w-full items-center justify-between rounded-xl border-2 border-brand-600 bg-brand-50/50 px-4 py-3 text-left transition hover:bg-brand-50"
+          @click="addBuy"
+        >
+          <span>
+            <span class="block font-semibold text-brand-800">Buy Now</span>
+            <span class="block text-xs text-slate-500">Own it today — pay the full price</span>
+          </span>
+          <span class="flex-none font-bold text-brand-700">
+            {{ money(product.listed_price * qty) }}
+            <span v-if="qty > 1" class="block text-right text-[11px] font-normal text-slate-400">× {{ qty }}</span>
+          </span>
         </button>
 
         <p v-if="alreadyBooked" class="text-center text-xs text-slate-500">A 1% booking for this item is already in your cart.</p>
