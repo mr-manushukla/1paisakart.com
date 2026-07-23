@@ -23,8 +23,9 @@ const couponBusy = ref(false)
 const discount = computed(() => coupon.value?.discount ?? 0)
 const afterDiscount = computed(() => Math.max(0, cart.subtotal - discount.value))
 // Wallet may only reduce the purchase portion — never a 1% advance.
-const walletApplied = computed(() =>
-  applyWallet.value ? Math.min(auth.walletBalance, cart.walletCap, afterDiscount.value) : 0)
+const walletCovers = computed(() =>
+  cart.buyItems.length ? Math.min(auth.walletBalance, cart.walletCap, afterDiscount.value) : 0)
+const walletApplied = computed(() => (applyWallet.value ? walletCovers.value : 0))
 const payable = computed(() => afterDiscount.value - walletApplied.value + cart.drawTotal)
 
 async function applyCoupon() {
@@ -108,17 +109,18 @@ async function placeOrder() {
 
         <div v-if="cart.drawItems.length" class="rounded-2xl border-2 border-accent-500/30 bg-accent-500/5 p-2">
           <p class="px-3 pt-2 text-sm font-semibold text-accent-700">1% advance bookings</p>
-          <div v-for="i in cart.drawItems" :key="i.key" class="flex items-center justify-between px-3 py-2.5">
-            <span class="text-sm">{{ i.name }} <span class="text-slate-400">· one seat</span></span>
+          <div v-for="i in cart.drawItems" :key="i.key" class="flex items-center justify-between px-3 py-2.5 last:pb-3">
+            <span class="text-sm">{{ i.name }}</span>
             <span class="font-medium">{{ money(i.entry_price) }}</span>
           </div>
-          <p class="px-3 pb-2 text-[11px] text-slate-500">Advances are paid in real money — wallet credit can't be used for them.</p>
         </div>
       </div>
 
       <div class="card h-fit p-5">
         <h2 class="font-semibold">Payment</h2>
-        <label v-if="cart.buyItems.length" class="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-brand-50 p-3">
+        <!-- Hidden outright when there's no credit to apply — an empty wallet
+             offer is just noise, and the checkbox would do nothing. -->
+        <label v-if="walletCovers" class="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-brand-50 p-3">
           <input v-model="applyWallet" type="checkbox" class="mt-1" />
           <span class="text-sm">
             <span class="font-semibold text-brand-700">Use wallet credit</span>
