@@ -12,6 +12,7 @@ use App\Http\Controllers\OrderController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReviewController;
+use App\Http\Controllers\SlideController;
 use App\Http\Controllers\CouponController;
 use App\Http\Controllers\Vendor\CouponController as VendorCouponController;
 use App\Http\Controllers\Vendor\ProductController as VendorProductController;
@@ -29,6 +30,7 @@ Route::post('/logout', [AuthController::class, 'logout']);
 Route::get('/categories', fn () => \App\Models\Category::query()
     ->withCount(['products' => fn ($q) => $q->where('status', 'active')])
     ->orderBy('name')->get(['id', 'name', 'slug']));
+Route::get('/slides', [SlideController::class, 'index']); // homepage hero, admin-editable
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/products/{product:slug}', [ProductController::class, 'show']);
 Route::get('/products/{product:slug}/batch', [ProductController::class, 'batch']); // who's in the pool
@@ -85,5 +87,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/batches/{batch}/cancel', [PlatformController::class, 'cancelBatch']);
         Route::get('/settings', [PlatformController::class, 'settings']);
         Route::put('/settings', [PlatformController::class, 'updateSettings']);
+        Route::put('/slides', [SlideController::class, 'update']);
+        Route::post('/slides/image', [SlideController::class, 'uploadImage']);
     });
 });

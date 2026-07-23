@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import api from '../lib/api'
 import { money } from '../lib/money'
 import { toast, apiError } from '../lib/toast'
+import { GRADIENTS, gradientClass, headingParts } from '../lib/gradients'
 
 const tab = ref('categories')
 const categories = ref([])
@@ -72,7 +73,7 @@ async function deleteCoupon(c) {
   catch (e) { toast(apiError(e), 'error') }
 }
 
-onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers(), loadCoupons()]))
+onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers(), loadCoupons(), loadSlides()]))
 
 async function addCat() {
   if (!newCat.value) return
@@ -97,6 +98,46 @@ async function saveFee() {
   try { await api.put('/admin/settings', { platform_fee_pct: Number(fee.value) }); toast('Saved') }
   catch (e) { toast(apiError(e), 'error') }
 }
+
+// ---- Homepage hero slides ----
+const MAX_SLIDES = 8
+const slides = ref([])
+const slidesBusy = ref(false)
+const gradientKeys = Object.keys(GRADIENTS)
+const blankSlide = () => ({ eyebrow: '', heading: 'New headline with a *highlight*', text: '', cta_label: 'Shop now', cta_to: '/shop', gradient: 'green', image: '' })
+
+async function loadSlides() { slides.value = (await api.get('/slides')).data.data }
+
+function moveSlide(i, by) {
+  const to = i + by
+  if (to < 0 || to >= slides.value.length) return
+  const [s] = slides.value.splice(i, 1)
+  slides.value.splice(to, 0, s)
+}
+
+async function uploadSlideImage(i, e) {
+  const file = e.target.files[0]
+  e.target.value = '' // allow re-selecting the same file
+  if (!file) return
+
+  const fd = new FormData()
+  fd.append('image', file)
+  slidesBusy.value = true
+  try {
+    const { data } = await api.post('/admin/slides/image', fd)
+    slides.value[i].image = data.url
+    toast('Image uploaded — remember to save')
+  } catch (err) { toast(apiError(err), 'error') } finally { slidesBusy.value = false }
+}
+
+async function saveSlides() {
+  slidesBusy.value = true
+  try {
+    const { data } = await api.put('/admin/slides', { slides: slides.value })
+    slides.value = data.data
+    toast('Slides saved — the homepage is live with them now')
+  } catch (e) { toast(apiError(e), 'error') } finally { slidesBusy.value = false }
+}
 </script>
 
 <template>
@@ -104,7 +145,7 @@ async function saveFee() {
     <h1 class="mb-6 font-display text-2xl font-bold">Admin dashboard</h1>
 
     <div class="mb-6 flex gap-2 border-b border-slate-100">
-      <button v-for="t in ['categories', 'vendors', 'customers', 'coupons', 'batches', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['categories', 'vendors', 'customers', 'coupons', 'batches', 'slides', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
     </div>
 
     <!-- Categories -->
@@ -259,6 +300,97 @@ async function saveFee() {
         <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
       </div>
       <p v-if="!batches.length" class="card p-8 text-center text-slate-500">No batches.</p>
+    </div>
+
+    <!-- Homepage slider -->
+    <div v-show="tab === 'slides'" class="mx-auto max-w-3xl">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-slate-500">
+          Homepage hero slides · {{ slides.length }} / {{ MAX_SLIDES }}. Wrap words in <code class="rounded bg-slate-100 px-1">*asterisks*</code> to highlight them.
+        </p>
+        <div class="flex gap-2">
+          <button class="btn-ghost px-3 py-1.5 text-sm" :disabled="slides.length >= MAX_SLIDES" @click="slides.push(blankSlide())">+ Add slide</button>
+          <button class="btn-primary px-4 py-1.5 text-sm" :disabled="slidesBusy" @click="saveSlides">{{ slidesBusy ? 'Saving…' : 'Save slides' }}</button>
+        </div>
+      </div>
+
+      <div v-for="(s, i) in slides" :key="i" class="card mb-4 overflow-hidden">
+        <!-- Live preview of exactly what the homepage will render -->
+        <div class="bg-gradient-to-br px-5 py-6 text-white" :class="gradientClass(s.gradient)">
+          <div class="flex items-center justify-between gap-4">
+            <div class="min-w-0">
+              <span v-if="s.eyebrow" class="chip bg-white/15 text-white">{{ s.eyebrow }}</span>
+              <p class="mt-2 font-display text-2xl font-extrabold leading-tight">
+                <template v-for="(part, pi) in headingParts(s.heading)" :key="pi">
+                  <span v-if="pi % 2" class="text-accent-400">{{ part }}</span>
+                  <template v-else>{{ part }}</template>
+                </template>
+              </p>
+              <p v-if="s.text" class="mt-1 line-clamp-2 text-sm text-white/85">{{ s.text }}</p>
+            </div>
+            <img v-if="s.image" :src="s.image" alt="" class="hidden h-20 w-20 flex-none rounded-xl object-cover ring-2 ring-white/20 sm:block" />
+          </div>
+        </div>
+
+        <div class="space-y-3 p-4">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Slide {{ i + 1 }}</span>
+            <div class="flex gap-1">
+              <button class="btn-ghost px-2 py-1 text-sm" :disabled="i === 0" title="Move up" @click="moveSlide(i, -1)">↑</button>
+              <button class="btn-ghost px-2 py-1 text-sm" :disabled="i === slides.length - 1" title="Move down" @click="moveSlide(i, 1)">↓</button>
+              <button class="btn-ghost px-2 py-1 text-sm text-rose-600" title="Remove slide" @click="slides.splice(i, 1)">Remove</button>
+            </div>
+          </div>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block text-sm">Eyebrow <span class="text-slate-400">(small label)</span>
+              <input v-model="s.eyebrow" maxlength="60" class="input mt-1" placeholder="The 1% draw" />
+            </label>
+            <label class="block text-sm">Background
+              <select v-model="s.gradient" class="input mt-1 capitalize">
+                <option v-for="g in gradientKeys" :key="g" :value="g">{{ g }}</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="block text-sm">Headline
+            <input v-model="s.heading" maxlength="120" class="input mt-1" placeholder="Pay just *1%*. Win the whole thing." />
+          </label>
+
+          <label class="block text-sm">Body text
+            <textarea v-model="s.text" maxlength="300" rows="2" class="input mt-1" placeholder="One or two sentences." />
+          </label>
+
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label class="block text-sm">Button label
+              <input v-model="s.cta_label" maxlength="40" class="input mt-1" placeholder="Shop all products" />
+            </label>
+            <label class="block text-sm">Button link <span class="text-slate-400">(path on this site)</span>
+              <input v-model="s.cta_to" maxlength="200" class="input mt-1" placeholder="/shop" />
+            </label>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <img v-if="s.image" :src="s.image" alt="" class="h-14 w-14 flex-none rounded-lg border border-slate-200 object-cover" />
+            <label class="flex-1">
+              <span class="sr-only">Upload slide image</span>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                :disabled="slidesBusy"
+                class="block w-full text-sm text-slate-500 file:mr-3 file:rounded-lg file:border-0 file:bg-brand-600 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-brand-700 disabled:opacity-50"
+                @change="uploadSlideImage(i, $event)"
+              />
+            </label>
+            <button v-if="s.image" class="btn-ghost px-2 py-1 text-sm text-rose-600" @click="s.image = ''">Clear image</button>
+          </div>
+          <p class="text-xs text-slate-400">JPG, PNG or WebP · up to 4 MB · shown on large screens only.</p>
+        </div>
+      </div>
+
+      <p v-if="!slides.length" class="card p-8 text-center text-slate-500">
+        No slides — the homepage hero is hidden. Add one to bring it back.
+      </p>
     </div>
 
     <!-- Settings -->
