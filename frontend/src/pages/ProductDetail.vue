@@ -5,8 +5,7 @@ import api from '../lib/api'
 import { money } from '../lib/money'
 import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
-import { toast, apiError } from '../lib/toast'
-import { payAndFulfil } from '../lib/razorpay'
+import { toast } from '../lib/toast'
 import { openBuyOptions } from '../lib/buyOptions'
 import ImageGallery from '../components/ImageGallery.vue'
 import DrawProgress from '../components/DrawProgress.vue'
@@ -27,7 +26,6 @@ const cart = useCartStore()
 const product = ref(null)
 const batch = ref(null)
 const loading = ref(true)
-const joining = ref(false)
 const qty = ref(1)
 let poll
 
@@ -79,33 +77,13 @@ function buyNow() {
   cart.add(product.value, qty.value)
   router.push({ name: auth.isAuthed && auth.isCustomer ? 'checkout' : 'cart' })
 }
-async function joinDraw() {
-  if (!auth.isAuthed) return router.push({ name: 'login', query: { redirect: route.fullPath } })
-  if (!auth.isCustomer) return toast('Only customer accounts can join draws.', 'error')
+// Same flow as Buy Now: add the 1% booking to the cart and go to the checkout
+// summary, where the advance is reviewed and paid — never straight to payment.
+function joinDraw() {
   // One seat per product per pool — the server refuses a repeat too, but tell them here.
   if (product.value.already_booked) return toast('You’ve already booked a 1% seat for this item in the current pool.', 'error')
-  joining.value = true
-  try {
-    // The advance is real money — always through the gateway, never wallet.
-    const result = await payAndFulfil({ intent: 'draw', product_slug: slug })
-    if (!result) {
-      // Dismissed checkout — keep it in the cart so they can finish later.
-      cart.add(product.value, 1, 'draw')
-      return toast('Saved to your cart — you can complete the booking later', 'error')
-    }
-
-    cart.remove(`draw:${product.value.id}`)
-    toast(result.result?.won || result.won
-      ? 'The pool filled and you won! The product is yours. 🎉'
-      : 'Your seat is booked. Watch the pool fill up.')
-    await Promise.all([fetchBatch(), fetchProduct(), auth.refresh()])
-  } catch (e) {
-    // Payment failed — don't lose the intent, park it in the cart.
-    cart.add(product.value, 1, 'draw')
-    toast(apiError(e, e?.message || 'Payment failed') + ' — saved to your cart', 'error')
-  } finally {
-    joining.value = false
-  }
+  cart.add(product.value, 1, 'draw')
+  router.push({ name: auth.isAuthed && auth.isCustomer ? 'checkout' : 'cart' })
 }
 </script>
 
@@ -170,9 +148,9 @@ async function joinDraw() {
               <p class="mt-1 text-center text-[11px] text-slate-500">Own it today — pay the full price</p>
             </div>
             <div v-if="product.draw_eligible">
-              <button class="btn-accent w-full" :disabled="joining || product.already_booked" @click="joinDraw">
+              <button class="btn-accent w-full" :disabled="product.already_booked" @click="joinDraw">
                 <template v-if="product.already_booked">Already booked in this pool</template>
-                <template v-else>{{ joining ? 'Booking…' : `Buy with 1% Advance · ${money(product.entry_price)}` }}</template>
+                <template v-else>Buy with 1% Advance · {{ money(product.entry_price) }}</template>
               </button>
               <p class="mt-1 text-center text-[11px] text-slate-500">
                 <template v-if="product.already_booked">One seat per item — book a different item to add another seat.</template>
@@ -270,7 +248,7 @@ async function joinDraw() {
         <button
           v-if="product.draw_eligible"
           class="flex flex-1 flex-col items-center justify-center rounded-xl border border-accent-500 bg-white px-2 py-1.5 text-accent-700 disabled:opacity-50"
-          :disabled="joining || product.already_booked"
+          :disabled="product.already_booked"
           @click="joinDraw"
         >
           <template v-if="product.already_booked">
@@ -278,7 +256,7 @@ async function joinDraw() {
             <span class="text-[11px] leading-tight text-slate-500">in this pool</span>
           </template>
           <template v-else>
-            <span class="text-sm font-bold leading-tight">{{ joining ? 'Booking…' : 'Buy with 1% Advance' }}</span>
+            <span class="text-sm font-bold leading-tight">Buy with 1% Advance</span>
             <span class="text-[11px] leading-tight text-slate-500">{{ money(product.entry_price) }} now</span>
           </template>
         </button>
