@@ -20,7 +20,7 @@ const drawChip = {
   won: ['🎉 Won', 'bg-accent-500 text-white'],
   lost_pending: ['Choose an option', 'bg-amber-50 text-amber-700'],
   converted: ['Bought at balance', 'bg-brand-100 text-brand-800'],
-  credited: ['Moved to wallet', 'bg-slate-100 text-slate-600'],
+  credited: ['Moved to 1% Wallet', 'bg-slate-100 text-slate-600'],
   refunded: ['Refunded', 'bg-slate-100 text-slate-600'],
 }
 
@@ -69,7 +69,7 @@ const needsChoice = computed(() => draws.value.filter((d) => d.awaiting_choice).
       to="/my-draws"
       class="mb-4 block rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800 hover:bg-amber-100"
     >
-      <strong>{{ needsChoice }}</strong> booking{{ needsChoice > 1 ? 's need' : ' needs' }} your choice — buy at the balance or move the advance to your wallet →
+      <strong>{{ needsChoice }}</strong> booking{{ needsChoice > 1 ? 's need' : ' needs' }} your choice — buy at the balance or move the advance to your 1% Wallet →
     </RouterLink>
 
     <div v-if="loading" class="card h-40 animate-pulse bg-slate-50" />
@@ -95,7 +95,7 @@ const needsChoice = computed(() => draws.value.filter((d) => d.awaiting_choice).
             </div>
           </div>
           <div class="mt-2 flex justify-end gap-6 border-t border-slate-100 pt-2 text-sm">
-            <span v-if="row.data.wallet_applied" class="text-brand-700">Wallet − {{ money(row.data.wallet_applied) }}</span>
+            <span v-if="row.data.wallet_applied" class="text-brand-700">1% Wallet − {{ money(row.data.wallet_applied) }}</span>
             <span class="font-semibold">Paid {{ money(row.data.payable) }}</span>
           </div>
         </template>

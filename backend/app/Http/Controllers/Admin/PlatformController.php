@@ -13,7 +13,7 @@ class PlatformController extends Controller
     /** All club pools across the platform. */
     public function batches()
     {
-        return DrawBatch::with('club:id,label')
+        return DrawBatch::with(['club:id,label', 'winnerEntry.user', 'winnerEntry.product'])
             ->withSum('entries as pooled', 'amount')
             ->latest('id')->paginate(30)
             ->through(fn ($b) => [
@@ -25,7 +25,31 @@ class PlatformController extends Controller
                 'status' => $b->status,
                 'pooled' => (int) ($b->pooled ?? 0), // total advances held, paise
                 'drawn_at' => $b->drawn_at,
+                'winner' => $this->winnerDetails($b),
             ]);
+    }
+
+    /** Full winner record for a drawn pool — for shipping the prize. Null until drawn. */
+    private function winnerDetails(DrawBatch $batch): ?array
+    {
+        $entry = $batch->winnerEntry;
+        if (! $entry) {
+            return null;
+        }
+        $user = $entry->user;
+        $product = $entry->product;
+
+        return [
+            'entry_id' => $entry->id,
+            'product_name' => $product?->name,
+            'product_value' => $product ? $product->effectivePrice() : null, // paise
+            'advance_paid' => $entry->amount,                                 // the 1% they paid, paise
+            'name' => $user?->name,
+            'aid' => $user ? 'AID-'.$user->id : null,
+            'email' => $user?->email,
+            'phone' => $user?->phone,
+            'address' => $user?->address,
+        ];
     }
 
     public function cancelBatch(DrawBatch $batch): array

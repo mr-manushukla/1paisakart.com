@@ -77,10 +77,13 @@ function checkout() {
         <div v-if="cart.drawItems.length" class="mt-1 flex justify-between text-sm">
           <span class="text-slate-500">1% advances</span><span class="text-accent-700">{{ money(cart.drawTotal) }}</span>
         </div>
-        <!-- Only worth saying when there is credit that can actually be applied here. -->
+        <!-- P3: "1% Wallet can cover up to …" line temporarily hidden on the Summary.
+             Kept (commented) so it's a one-line restore when we want it back.
         <div v-if="walletCovers" class="mt-1 flex justify-between text-sm">
-          <span class="text-slate-500">Wallet can cover up to</span><span class="text-brand-700">{{ money(walletCovers) }}</span>
+          <span class="text-slate-500">1% Wallet can cover up to</span><span class="text-brand-700">{{ money(walletCovers) }}</span>
         </div>
+        -->
+
         <div class="mt-3 flex justify-between border-t border-slate-100 pt-2 font-bold">
           <span>Total</span><span>{{ money(cart.subtotal + cart.drawTotal) }}</span>
         </div>

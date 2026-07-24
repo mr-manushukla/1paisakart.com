@@ -72,7 +72,7 @@ async function logout() {
             <template v-else>
               <RouterLink v-if="auth.isCustomer" to="/my-draws" class="block px-4 py-2 hover:bg-slate-50">My draws</RouterLink>
               <RouterLink v-if="auth.isCustomer" to="/orders" class="block px-4 py-2 hover:bg-slate-50">My orders</RouterLink>
-              <RouterLink v-if="auth.isCustomer" to="/wallet" class="block px-4 py-2 hover:bg-slate-50">Wallet</RouterLink>
+              <RouterLink v-if="auth.isCustomer" to="/wallet" class="block px-4 py-2 hover:bg-slate-50">1% Wallet</RouterLink>
               <RouterLink v-if="auth.isVendor" to="/vendor" class="block px-4 py-2 hover:bg-slate-50">Vendor dashboard</RouterLink>
               <RouterLink v-if="auth.isAdmin" to="/admin" class="block px-4 py-2 hover:bg-slate-50">Admin dashboard</RouterLink>
               <button class="block w-full px-4 py-2 text-left text-rose-600 hover:bg-slate-50" @click="logout">Sign out</button>

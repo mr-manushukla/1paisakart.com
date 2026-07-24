@@ -186,12 +186,12 @@ Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}
             <p class="mt-1 text-xs text-slate-500">
               <strong>Win</strong> and the product is yours — your 1% covers it (government taxes on the prize apply).
               <strong>Didn't win?</strong> Either pay the remaining {{ money(product.listed_price - product.entry_price) }} to buy it,
-              or move your {{ money(product.entry_price) }} to your wallet.
+              or move your {{ money(product.entry_price) }} to your 1% Wallet.
             </p>
 
             <p class="mt-2 rounded-lg bg-white/60 px-2.5 py-2 text-[11px] text-slate-500">
               One seat per item. To take more seats in this pool, book a <strong>different</strong> product
-              in the same price range — you can still win only one item, and any extra seats refund to your wallet.
+              in the same price range — you can still win only one item, and any extra seats refund to your 1% Wallet.
             </p>
             <div v-if="hasOpenPool" class="mt-2">
               <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="product.entry_price" />

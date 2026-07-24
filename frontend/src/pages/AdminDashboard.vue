@@ -25,7 +25,7 @@ const loadingCust = ref(false)
 
 const statusLabel = {
   active: 'In the pool', won: 'Won', lost_pending: 'Awaiting choice',
-  converted: 'Bought at balance', credited: 'Moved to wallet', refunded: 'Refunded',
+  converted: 'Bought at balance', credited: 'Moved to 1% Wallet', refunded: 'Refunded',
 }
 
 async function loadCustomers() {
@@ -214,7 +214,7 @@ async function saveSlides() {
         <div v-else class="space-y-4">
           <div class="card p-4">
             <p class="font-display text-lg font-bold">{{ selected.customer.name }}</p>
-            <p class="text-sm text-slate-500">{{ selected.customer.email }} · wallet {{ money(selected.customer.wallet_balance) }}</p>
+            <p class="text-sm text-slate-500">{{ selected.customer.email }} · 1% Wallet {{ money(selected.customer.wallet_balance) }}</p>
             <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div><p class="font-display text-xl font-bold text-brand-700">{{ selected.summary.pools_joined }}</p><p class="text-xs text-slate-500">Pools joined</p></div>
               <div><p class="font-display text-xl font-bold text-brand-700">{{ selected.summary.products }}</p><p class="text-xs text-slate-500">Products</p></div>
@@ -292,12 +292,45 @@ async function saveSlides() {
 
     <!-- Batches -->
     <div v-show="tab === 'batches'" class="space-y-2">
-      <div v-for="b in batches" :key="b.id" class="card flex items-center justify-between p-3">
-        <div>
-          <p class="font-semibold">{{ b.club }} · pool #{{ b.batch_no }}</p>
-          <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} seats · pooled {{ money(b.pooled) }} · <span class="capitalize">{{ b.status }}</span></p>
+      <div v-for="b in batches" :key="b.id" class="card p-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="font-semibold">{{ b.club }} · pool #{{ b.batch_no }}</p>
+            <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} seats · pooled {{ money(b.pooled) }} · <span class="capitalize">{{ b.status }}</span></p>
+          </div>
+          <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
+          <span v-else-if="b.winner" class="chip bg-accent-500 text-white">🎉 Winner drawn</span>
         </div>
-        <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
+
+        <!-- Winner details for a drawn pool — everything needed to ship the prize -->
+        <div v-if="b.winner" class="mt-3 grid gap-4 rounded-xl border border-accent-500/30 bg-accent-500/5 p-3 sm:grid-cols-2">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pool</p>
+            <dl class="mt-1 space-y-0.5 text-sm">
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Pool ID</dt><dd class="font-medium">#{{ b.id }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Price band</dt><dd class="font-medium">{{ b.club }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Draw no.</dt><dd class="font-medium">Draw-{{ b.batch_no }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Total collected</dt><dd class="font-medium">{{ money(b.pooled) }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Drawn on</dt><dd class="font-medium">{{ b.drawn_at ? new Date(b.drawn_at).toLocaleString('en-IN') : '—' }}</dd></div>
+            </dl>
+            <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Winning product</p>
+            <dl class="mt-1 space-y-0.5 text-sm">
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Name</dt><dd class="text-right font-medium">{{ b.winner.product_name }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Value</dt><dd class="font-medium">{{ money(b.winner.product_value) }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Advance paid</dt><dd class="font-medium">{{ money(b.winner.advance_paid) }}</dd></div>
+            </dl>
+          </div>
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Winner</p>
+            <dl class="mt-1 space-y-0.5 text-sm">
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Name</dt><dd class="font-medium">{{ b.winner.name }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">AID</dt><dd class="font-medium">{{ b.winner.aid }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Email</dt><dd class="text-right font-medium">{{ b.winner.email || '—' }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Contact</dt><dd class="font-medium">{{ b.winner.phone || '— not provided' }}</dd></div>
+              <div class="flex justify-between gap-3"><dt class="text-slate-500">Address</dt><dd class="max-w-[60%] text-right font-medium">{{ b.winner.address || '— not provided' }}</dd></div>
+            </dl>
+          </div>
+        </div>
       </div>
       <p v-if="!batches.length" class="card p-8 text-center text-slate-500">No batches.</p>
     </div>

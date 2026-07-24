@@ -10,7 +10,9 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\WinnerWonNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Lucky Draw Purchase Scheme.
@@ -27,7 +29,10 @@ use Illuminate\Support\Facades\DB;
  */
 class DrawService
 {
-    public function __construct(private WalletService $wallet) {}
+    public function __construct(
+        private WalletService $wallet,
+        private SmsService $sms,
+    ) {}
 
     /**
      * Book the 1% advance on a product — one seat in that product's club pool.
@@ -108,6 +113,27 @@ class DrawService
         });
     }
 
+    /**
+     * Does this customer already hold a seat for this product in its CURRENT open
+     * pool? enter() rejects a repeat, so charging for one is money taken for a seat
+     * that can never be granted — the advance would only bounce to the wallet. The
+     * quote boundary calls this to drop such items BEFORE taking payment.
+     */
+    public function heldSeat(User $user, Product $product): bool
+    {
+        $club = $product->club();
+        if (! $club) {
+            return false;
+        }
+        $batch = DrawBatch::where('club_id', $club->id)
+            ->where('status', 'open')
+            ->latest('id')
+            ->first();
+
+        return $batch
+            && $batch->entries()->where('user_id', $user->id)->where('product_id', $product->id)->exists();
+    }
+
     /** Open a fresh pool for a club (lazily — only when someone needs a seat). */
     public function openBatch(Club $club): DrawBatch
     {
@@ -166,7 +192,34 @@ class DrawService
                 'winner_entry_id' => $winner->id,
                 'drawn_at' => now(),
             ]);
+
+            // Congratulate the winner AFTER the draw commits — never inside the
+            // transaction, so a slow/failing send can't hold locks or roll back
+            // a settled draw. afterCommit also means it won't fire on a rollback.
+            DB::afterCommit(fn () => $this->notifyWinner($winner));
         });
+    }
+
+    /** Email + SMS the winner. Best-effort: any failure is logged, never thrown. */
+    private function notifyWinner(DrawEntry $winner): void
+    {
+        $user = $winner->user;
+        if (! $user) {
+            return;
+        }
+        $product = $winner->product?->name ?? 'your product';
+        $sms = "Congratulations! 🎉 You won the prize ({$product}). You will receive your product soon. Thank you for choosing 1paisakart.";
+
+        try {
+            $user->notify(new WinnerWonNotification($winner));
+        } catch (\Throwable $e) {
+            Log::warning('Winner email failed for entry #'.$winner->id.': '.$e->getMessage());
+        }
+        try {
+            $this->sms->send($user->phone, $sms);
+        } catch (\Throwable $e) {
+            Log::warning('Winner SMS failed for entry #'.$winner->id.': '.$e->getMessage());
+        }
     }
 
     /** Option A — pay the remaining 99% and take the booked product. */

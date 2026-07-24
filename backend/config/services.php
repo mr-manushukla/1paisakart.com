@@ -40,4 +40,12 @@ return [
         'secret' => env('RAZORPAY_SECRET'),
     ],
 
+    // SMS is off until a provider is chosen and credentials are set. See SmsService.
+    'sms' => [
+        'enabled' => env('SMS_ENABLED', false),
+        'endpoint' => env('SMS_ENDPOINT'),
+        'key' => env('SMS_KEY'),
+        'sender' => env('SMS_SENDER'),
+    ],
+
 ];

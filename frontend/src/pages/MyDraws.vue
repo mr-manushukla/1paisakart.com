@@ -19,7 +19,7 @@ const badge = {
   won: ['🎉 You won!', 'bg-accent-500 text-white'],
   lost_pending: ['Choose an option', 'bg-amber-50 text-amber-700'],
   converted: ['Purchased', 'bg-brand-100 text-brand-800'],
-  credited: ['Moved to wallet', 'bg-slate-100 text-slate-600'],
+  credited: ['Moved to 1% Wallet', 'bg-slate-100 text-slate-600'],
   refunded: ['Refunded', 'bg-slate-100 text-slate-600'],
 }
 
@@ -61,7 +61,7 @@ async function moveToWallet(e) {
 <template>
   <div class="mx-auto max-w-3xl">
     <h1 class="mb-1 font-display text-2xl font-bold">My draws</h1>
-    <p class="mb-6 text-sm text-slate-500">Your 1% bookings. Win and the product is yours — otherwise choose to buy it or move your advance to your wallet.</p>
+    <p class="mb-6 text-sm text-slate-500">Your 1% bookings. Win and the product is yours — otherwise choose to buy it or move your advance to your 1% Wallet.</p>
 
     <!-- Participation at a glance -->
     <div v-if="summary && summary.bookings" class="card mb-5 grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
@@ -82,7 +82,7 @@ async function moveToWallet(e) {
         <p class="text-xs text-slate-500">Total advanced</p>
       </div>
       <div v-if="summary.awaiting_choice" class="col-span-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:col-span-4">
-        <strong>{{ summary.awaiting_choice }}</strong> booking{{ summary.awaiting_choice > 1 ? 's need' : ' needs' }} your choice — buy at the balance, or move the advance to your wallet.
+        <strong>{{ summary.awaiting_choice }}</strong> booking{{ summary.awaiting_choice > 1 ? 's need' : ' needs' }} your choice — buy at the balance, or move the advance to your 1% Wallet.
       </div>
     </div>
 
@@ -113,20 +113,20 @@ async function moveToWallet(e) {
             <div v-else-if="e.awaiting_choice" class="mt-3 rounded-xl bg-amber-50/70 p-3">
               <p class="text-sm text-slate-700">
                 You didn't win this pool. Your {{ money(e.advance) }} is safe — pick one by
-                <strong>{{ deadline(e.choice_deadline_at) }}</strong>, or we'll move it to your wallet automatically.
+                <strong>{{ deadline(e.choice_deadline_at) }}</strong>, or we'll move it to your 1% Wallet automatically.
               </p>
               <div class="mt-3 flex flex-wrap gap-2">
                 <button class="btn-primary" :disabled="busy === e.id" @click="payBalance(e)">
                   Buy it — pay {{ money(e.balance_due) }}
                 </button>
                 <button class="btn-ghost" :disabled="busy === e.id" @click="moveToWallet(e)">
-                  Move {{ money(e.advance) }} to wallet
+                  Move {{ money(e.advance) }} to 1% Wallet
                 </button>
               </div>
             </div>
 
             <p v-else-if="e.status === 'converted'" class="mt-2 text-sm text-slate-500">You paid the balance — see your orders.</p>
-            <p v-else-if="e.status === 'credited'" class="mt-2 text-sm text-slate-500">{{ money(e.advance) }} was moved to your wallet.</p>
+            <p v-else-if="e.status === 'credited'" class="mt-2 text-sm text-slate-500">{{ money(e.advance) }} was moved to your 1% Wallet.</p>
             <p v-else-if="e.status === 'active'" class="mt-2 text-sm text-slate-500">Pool is still filling. Draw happens at {{ e.pool?.size }} seats — odds 1 in {{ e.pool?.size }}.</p>
           </div>
         </div>

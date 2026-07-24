@@ -37,7 +37,7 @@ const testimonials = [
     <!-- Trust bar -->
     <section class="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🚚</span> Fast delivery</div>
-      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">👛</span> Wallet refunds</div>
+      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">👛</span> 1% Wallet refunds</div>
       <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">⚖️</span> Provably fair draw</div>
       <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🔒</span> Secure checkout</div>
     </section>
@@ -75,7 +75,7 @@ const testimonials = [
         <div class="text-center">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 font-bold text-white">3</div>
           <p class="mt-2 font-semibold">Win it — or choose</p>
-          <p class="text-sm text-slate-500">The winner keeps their product for the 1%. Everyone else pays the remaining 99% to buy it, or moves the 1% to their wallet.</p>
+          <p class="text-sm text-slate-500">The winner keeps their product for the 1%. Everyone else pays the remaining 99% to buy it, or moves the 1% to their 1% Wallet.</p>
         </div>
       </div>
     </section>

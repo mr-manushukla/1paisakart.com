@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { toast, apiError } from '../lib/toast'
+import PasswordField from '../components/PasswordField.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
@@ -41,7 +42,7 @@ async function submit() {
 
       <form class="mt-5 space-y-3" @submit.prevent="submit">
         <input v-model="email" type="email" class="input" placeholder="Email" required />
-        <input v-model="password" type="password" class="input" placeholder="Password" required />
+        <PasswordField v-model="password" placeholder="Password" />
         <button class="btn-primary w-full" :disabled="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</button>
       </form>
 

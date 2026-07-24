@@ -22,10 +22,10 @@ onMounted(async () => {
 
 <template>
   <div class="mx-auto max-w-3xl">
-    <h1 class="mb-6 font-display text-2xl font-bold">My wallet</h1>
+    <h1 class="mb-6 font-display text-2xl font-bold">My 1% Wallet</h1>
 
     <div class="card bg-gradient-to-br from-brand-600 to-brand-800 p-6 text-white">
-      <p class="text-sm text-white/80">Wallet balance</p>
+      <p class="text-sm text-white/80">1% Wallet balance</p>
       <p class="font-display text-4xl font-extrabold">{{ money(balance) }}</p>
       <p class="mt-2 text-xs text-white/80">Restricted credit — usable on any product you buy outright, up to 1% of that item's price. Cannot be used to pay a 1% booking advance.</p>
     </div>

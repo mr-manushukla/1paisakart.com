@@ -121,7 +121,7 @@ class RazorpayService
     {
         return match ($input['intent']) {
             'checkout' => $this->quoteCheckout($user, $input),
-            'draw' => $this->quoteDraw($input),
+            'draw' => $this->quoteDraw($user, $input),
             'balance' => $this->quoteBalance($user, $input),
             default => throw new BusinessException('Unknown payment type.'),
         };
@@ -156,13 +156,26 @@ class RazorpayService
             $cap += $p->maxWalletApplicable() * $line['qty'];
         }
 
+        // Never charge for a seat the customer already holds — enter() would reject
+        // it on fulfilment and the advance would only bounce to the restricted wallet
+        // (the "paid but couldn't book" double-charge). Drop those before pricing.
+        $bookable = [];
         $advances = 0;
         foreach ($drawIds as $id) {
             $p = Product::findOrFail($id);
             if (! $p->drawEligible()) {
                 throw new BusinessException("“{$p->name}” is not available for the draw.");
             }
+            if ($this->draw->heldSeat($user, $p)) {
+                continue; // already booked in the open pool — skip, don't charge again
+            }
+            $bookable[] = $id;
             $advances += $p->entryPrice();
+        }
+        $drawIds = $bookable;
+
+        if (! $lines && ! $drawIds) {
+            throw new BusinessException('You have already booked these items in their pools — nothing left to pay.');
         }
 
         // Coupons discount purchases only — never a 1% advance.
@@ -185,11 +198,16 @@ class RazorpayService
         ];
     }
 
-    private function quoteDraw(array $input): array
+    private function quoteDraw(User $user, array $input): array
     {
         $product = Product::where('slug', $input['product_slug'] ?? '')->firstOrFail();
         if (! $product->drawEligible()) {
             throw new BusinessException('This product is not available for the draw.');
+        }
+        // Reject before taking money — a repeat would roll back on fulfilment and
+        // leave the captured advance stranded.
+        if ($this->draw->heldSeat($user, $product)) {
+            throw new BusinessException('You have already booked this item in this pool. Choose a different product in the same price range to add another seat.');
         }
 
         // One seat per product — quantity is always 1.

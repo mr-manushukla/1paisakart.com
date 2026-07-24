@@ -162,6 +162,36 @@ class RazorpayPaymentTest extends TestCase
         $this->assertSame($book->id, $user->drawEntries()->first()->product_id);
     }
 
+    /**
+     * P4 root-cause guard: a customer whose draw items are ALL already booked must
+     * not be charged again. quote() drops them and, with nothing left, refuses to
+     * open a payment — so no money is taken to bounce into the restricted wallet.
+     * The throw happens before any Razorpay API call, so this runs without network.
+     */
+    public function test_checkout_refuses_to_charge_for_seats_already_held(): void
+    {
+        $user = User::factory()->create(['role' => 'customer']);
+        $book = $this->product(20000);
+        app(\App\Services\DrawService::class)->enter($book, $user); // already holds the seat
+
+        $this->expectException(\App\Exceptions\BusinessException::class);
+        app(\App\Services\RazorpayService::class)->createOrder($user, [
+            'intent' => 'checkout', 'items' => [], 'draw_items' => [$book->id], 'apply_wallet' => false,
+        ]);
+    }
+
+    public function test_direct_booking_refuses_a_seat_already_held(): void
+    {
+        $user = User::factory()->create(['role' => 'customer']);
+        $book = $this->product(20000);
+        app(\App\Services\DrawService::class)->enter($book, $user);
+
+        $this->expectException(\App\Exceptions\BusinessException::class);
+        app(\App\Services\RazorpayService::class)->createOrder($user, [
+            'intent' => 'draw', 'product_slug' => $book->slug,
+        ]);
+    }
+
     public function test_an_unbookable_seat_is_returned_to_the_wallet_not_lost(): void
     {
         $user = User::factory()->create(['role' => 'customer']);

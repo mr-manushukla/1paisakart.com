@@ -77,7 +77,7 @@ async function placeOrder() {
 
     if (result.result?.refunded_to_wallet?.length || result.refunded_to_wallet?.length) {
       const names = (result.result?.refunded_to_wallet || result.refunded_to_wallet).join(', ')
-      toast(`Paid. Couldn't book: ${names} — that advance is back in your wallet.`, 'error')
+      toast(`Paid. Couldn't book: ${names} — that advance is back in your 1% Wallet.`, 'error')
     } else {
       toast('Payment successful 🎉')
     }
@@ -123,7 +123,7 @@ async function placeOrder() {
         <label v-if="walletCovers" class="mt-3 flex cursor-pointer items-start gap-2 rounded-lg bg-brand-50 p-3">
           <input v-model="applyWallet" type="checkbox" class="mt-1" />
           <span class="text-sm">
-            <span class="font-semibold text-brand-700">Use wallet credit</span>
+            <span class="font-semibold text-brand-700">Use 1% Wallet credit</span>
             <span class="block text-slate-500">Balance {{ money(auth.walletBalance) }} · capped at 1% per item ({{ money(cart.walletCap) }} max here)</span>
           </span>
         </label>
@@ -147,7 +147,7 @@ async function placeOrder() {
           <div v-if="cart.buyItems.length" class="flex justify-between"><span class="text-slate-500">Purchases</span><span>{{ money(cart.subtotal) }}</span></div>
           <div v-if="discount" class="flex justify-between text-green-700"><span>Coupon {{ coupon.code }}</span><span>− {{ money(discount) }}</span></div>
           <div v-if="cart.drawItems.length" class="flex justify-between"><span class="text-slate-500">1% advances</span><span>{{ money(cart.drawTotal) }}</span></div>
-          <div v-if="walletApplied" class="flex justify-between text-brand-700"><span>Wallet applied</span><span>− {{ money(walletApplied) }}</span></div>
+          <div v-if="walletApplied" class="flex justify-between text-brand-700"><span>1% Wallet applied</span><span>− {{ money(walletApplied) }}</span></div>
           <div class="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-bold"><span>Pay now</span><span>{{ money(payable) }}</span></div>
         </div>
 
