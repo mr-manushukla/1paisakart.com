@@ -45,6 +45,7 @@ async function logout() {
 
       <nav class="ml-auto flex items-center gap-4 text-sm font-medium text-slate-600">
         <RouterLink to="/shop" class="hidden hover:text-brand-700 sm:block">Shop</RouterLink>
+        <RouterLink to="/winners" class="hidden hover:text-brand-700 sm:block">🏆 Winners</RouterLink>
 
         <RouterLink v-if="auth.isCustomer" to="/wallet" class="hidden items-center gap-1 hover:text-brand-700 sm:flex">
           <span>👛</span><span class="font-semibold text-brand-700">{{ money(auth.walletBalance) }}</span>

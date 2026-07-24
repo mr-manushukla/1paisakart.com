@@ -13,8 +13,11 @@ const panel = ref(null)
 
 const product = computed(() => buyOptionsProduct.value)
 const canBuy = computed(() => !!product.value?.allow_full_buy && product.value?.stock > 0)
-const canDraw = computed(() => !!product.value?.draw_eligible)
-const alreadyBooked = computed(() => product.value && cart.has('draw', product.value.id))
+// One seat per product per pool: hide the 1% option once it's already booked —
+// either sitting in the cart, or a live booking from a previous purchase.
+const bookedElsewhere = computed(() => !!product.value?.already_booked)
+const canDraw = computed(() => !!product.value?.draw_eligible && !bookedElsewhere.value)
+const alreadyBooked = computed(() => bookedElsewhere.value || (product.value && cart.has('draw', product.value.id)))
 
 const qty = computed(() => buyOptionsQty.value)
 
@@ -104,7 +107,8 @@ watch(product, async (p) => { if (p) { await new Promise((r) => setTimeout(r)); 
           </span>
         </button>
 
-        <p v-if="alreadyBooked" class="text-center text-xs text-slate-500">A 1% booking for this item is already in your cart.</p>
+        <p v-if="bookedElsewhere" class="rounded-lg bg-amber-50 px-3 py-2 text-center text-xs text-amber-700">You’ve already booked a 1% seat for this item in the current pool — you can’t book it again until this pool draws.</p>
+        <p v-else-if="alreadyBooked" class="text-center text-xs text-slate-500">A 1% booking for this item is already in your cart.</p>
         <p v-if="!canBuy && !canDraw" class="rounded-lg bg-slate-50 p-3 text-center text-sm text-slate-500">
           This product isn't available to buy right now.
         </p>

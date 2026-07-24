@@ -2,9 +2,9 @@
 
 namespace App\Http\Resources;
 
+use App\Support\NameMask;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Str;
 
 /**
  * Public transparency view of a club pool: how full it is and WHO is in it
@@ -34,7 +34,7 @@ class BatchResource extends JsonResource
                 ->values()
                 ->map(fn ($e, $i) => [
                     'seat' => $i + 1,
-                    'name' => $this->mask($e->user?->name ?? 'Guest'),
+                    'name' => NameMask::name($e->user?->name),
                     'product' => $e->product?->name,
                     'advance' => $e->amount,   // paise — differs per product in the same club
                     'joined_at' => $e->created_at,
@@ -45,16 +45,5 @@ class BatchResource extends JsonResource
                 fn () => $this->entries->sortBy('id')->values()->search(fn ($e) => $e->id === $this->winner_entry_id) + 1,
             ),
         ];
-    }
-
-    /** "Customer 12" -> "Cu***12" — enough to see a real, distinct participant, not their identity. */
-    private function mask(string $name): string
-    {
-        $name = trim($name);
-        if (Str::length($name) <= 3) {
-            return Str::substr($name, 0, 1).'**';
-        }
-
-        return Str::substr($name, 0, 2).'***'.Str::substr($name, -2);
     }
 }

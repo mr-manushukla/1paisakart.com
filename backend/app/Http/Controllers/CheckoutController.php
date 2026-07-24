@@ -16,7 +16,8 @@ class CheckoutController extends Controller
         $data = $request->validate([
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.qty' => ['required', 'integer', 'min:1', 'max:99'],
+            // No artificial cap — stock is the only bound (enforced in CheckoutService).
+            'items.*.qty' => ['required', 'integer', 'min:1'],
             'apply_wallet' => ['boolean'],
             'coupon_code' => ['nullable', 'string', 'max:40'],
         ]);

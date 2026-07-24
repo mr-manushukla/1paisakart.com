@@ -5,6 +5,7 @@ const routes = [
   { path: '/', name: 'home', component: () => import('../pages/Home.vue') },
   { path: '/shop', name: 'shop', component: () => import('../pages/Shop.vue') },
   { path: '/product/:slug', name: 'product', component: () => import('../pages/ProductDetail.vue') },
+  { path: '/winners', name: 'winners', component: () => import('../pages/Winners.vue') },
   { path: '/cart', name: 'cart', component: () => import('../pages/Cart.vue') },
   { path: '/wishlist', name: 'wishlist', component: () => import('../pages/Wishlist.vue') },
   { path: '/login', name: 'login', component: () => import('../pages/Login.vue'), meta: { guestOnly: true } },

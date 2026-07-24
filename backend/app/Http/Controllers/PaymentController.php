@@ -17,7 +17,8 @@ class PaymentController extends Controller
             // checkout — a cart may hold purchases, 1% bookings, or both
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required_with:items', 'integer', 'exists:products,id'],
-            'items.*.qty' => ['required_with:items', 'integer', 'min:1', 'max:99'],
+            // No artificial cap — stock is the only bound (enforced at fulfilment).
+            'items.*.qty' => ['required_with:items', 'integer', 'min:1'],
             'draw_items' => ['nullable', 'array'],
             'draw_items.*' => ['integer', 'exists:products,id'],
             // draw — always a single seat (one seat per product per pool)

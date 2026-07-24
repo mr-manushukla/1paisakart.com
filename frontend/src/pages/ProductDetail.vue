@@ -61,7 +61,7 @@ onUnmounted(() => clearInterval(poll))
  */
 function addToCart() {
   const canBuy = product.value.allow_full_buy && product.value.stock > 0
-  const canDraw = !!product.value.draw_eligible
+  const canDraw = !!product.value.draw_eligible && !product.value.already_booked
 
   if (canBuy && canDraw) return openBuyOptions(product.value, qty.value)
 
@@ -82,6 +82,8 @@ function buyNow() {
 async function joinDraw() {
   if (!auth.isAuthed) return router.push({ name: 'login', query: { redirect: route.fullPath } })
   if (!auth.isCustomer) return toast('Only customer accounts can join draws.', 'error')
+  // One seat per product per pool — the server refuses a repeat too, but tell them here.
+  if (product.value.already_booked) return toast('You’ve already booked a 1% seat for this item in the current pool.', 'error')
   joining.value = true
   try {
     // The advance is real money — always through the gateway, never wallet.
@@ -168,11 +170,13 @@ async function joinDraw() {
               <p class="mt-1 text-center text-[11px] text-slate-500">Own it today — pay the full price</p>
             </div>
             <div v-if="product.draw_eligible">
-              <button class="btn-accent w-full" :disabled="joining" @click="joinDraw">
-                {{ joining ? 'Booking…' : `Buy with 1% Advance · ${money(product.entry_price)}` }}
+              <button class="btn-accent w-full" :disabled="joining || product.already_booked" @click="joinDraw">
+                <template v-if="product.already_booked">Already booked in this pool</template>
+                <template v-else>{{ joining ? 'Booking…' : `Buy with 1% Advance · ${money(product.entry_price)}` }}</template>
               </button>
               <p class="mt-1 text-center text-[11px] text-slate-500">
-Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}
+                <template v-if="product.already_booked">One seat per item — book a different item to add another seat.</template>
+                <template v-else>Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}</template>
               </p>
             </div>
           </div>
@@ -266,11 +270,17 @@ Pay 1% · odds 1 in {{ product.open_batch?.size ?? 100 }}
         <button
           v-if="product.draw_eligible"
           class="flex flex-1 flex-col items-center justify-center rounded-xl border border-accent-500 bg-white px-2 py-1.5 text-accent-700 disabled:opacity-50"
-          :disabled="joining"
+          :disabled="joining || product.already_booked"
           @click="joinDraw"
         >
-          <span class="text-sm font-bold leading-tight">{{ joining ? 'Booking…' : 'Buy with 1% Advance' }}</span>
-          <span class="text-[11px] leading-tight text-slate-500">{{ money(product.entry_price) }} now</span>
+          <template v-if="product.already_booked">
+            <span class="text-sm font-bold leading-tight">Already booked</span>
+            <span class="text-[11px] leading-tight text-slate-500">in this pool</span>
+          </template>
+          <template v-else>
+            <span class="text-sm font-bold leading-tight">{{ joining ? 'Booking…' : 'Buy with 1% Advance' }}</span>
+            <span class="text-[11px] leading-tight text-slate-500">{{ money(product.entry_price) }} now</span>
+          </template>
         </button>
 
         <button

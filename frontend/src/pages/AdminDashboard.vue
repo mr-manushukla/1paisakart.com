@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '../lib/api'
 import { money } from '../lib/money'
 import { toast, apiError } from '../lib/toast'
@@ -46,6 +46,16 @@ async function viewCustomer(c) {
 async function loadCats() { categories.value = (await api.get('/admin/categories')).data }
 async function loadVendors() { vendors.value = (await api.get('/admin/vendors')).data }
 async function loadBatches() { batches.value = (await api.get('/admin/batches')).data.data }
+
+// Drawn pools only, for the Winners tab.
+const winnerQ = ref('')
+const wonBatches = computed(() => batches.value.filter((b) => b.winner))
+const filteredWinners = computed(() => {
+  const q = winnerQ.value.trim().toLowerCase()
+  if (!q) return wonBatches.value
+  return wonBatches.value.filter((b) => [b.id, b.club, b.batch_no, b.winner?.name, b.winner?.aid, b.winner?.email, b.winner?.product_name]
+    .join(' ').toLowerCase().includes(q))
+})
 async function loadSettings() { fee.value = (await api.get('/admin/settings')).data.platform_fee_pct }
 async function loadCoupons() { coupons.value = (await api.get('/admin/coupons')).data }
 
@@ -145,7 +155,7 @@ async function saveSlides() {
     <h1 class="mb-6 font-display text-2xl font-bold">Admin dashboard</h1>
 
     <div class="mb-6 flex gap-2 border-b border-slate-100">
-      <button v-for="t in ['categories', 'vendors', 'customers', 'coupons', 'batches', 'slides', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['categories', 'vendors', 'customers', 'coupons', 'batches', 'winners', 'slides', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
     </div>
 
     <!-- Categories -->
@@ -292,47 +302,54 @@ async function saveSlides() {
 
     <!-- Batches -->
     <div v-show="tab === 'batches'" class="space-y-2">
-      <div v-for="b in batches" :key="b.id" class="card p-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="font-semibold">{{ b.club }} · pool #{{ b.batch_no }}</p>
-            <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} seats · pooled {{ money(b.pooled) }} · <span class="capitalize">{{ b.status }}</span></p>
-          </div>
-          <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
-          <span v-else-if="b.winner" class="chip bg-accent-500 text-white">🎉 Winner drawn</span>
+      <div v-for="b in batches" :key="b.id" class="card flex items-center justify-between p-3">
+        <div>
+          <p class="font-semibold">{{ b.club }} · pool #{{ b.batch_no }}</p>
+          <p class="text-sm text-slate-500">{{ b.filled }}/{{ b.size }} seats · pooled {{ money(b.pooled) }} · <span class="capitalize">{{ b.status }}</span></p>
         </div>
-
-        <!-- Winner details for a drawn pool — everything needed to ship the prize -->
-        <div v-if="b.winner" class="mt-3 grid gap-4 rounded-xl border border-accent-500/30 bg-accent-500/5 p-3 sm:grid-cols-2">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pool</p>
-            <dl class="mt-1 space-y-0.5 text-sm">
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Pool ID</dt><dd class="font-medium">#{{ b.id }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Price band</dt><dd class="font-medium">{{ b.club }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Draw no.</dt><dd class="font-medium">Draw-{{ b.batch_no }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Total collected</dt><dd class="font-medium">{{ money(b.pooled) }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Drawn on</dt><dd class="font-medium">{{ b.drawn_at ? new Date(b.drawn_at).toLocaleString('en-IN') : '—' }}</dd></div>
-            </dl>
-            <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Winning product</p>
-            <dl class="mt-1 space-y-0.5 text-sm">
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Name</dt><dd class="text-right font-medium">{{ b.winner.product_name }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Value</dt><dd class="font-medium">{{ money(b.winner.product_value) }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Advance paid</dt><dd class="font-medium">{{ money(b.winner.advance_paid) }}</dd></div>
-            </dl>
-          </div>
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Winner</p>
-            <dl class="mt-1 space-y-0.5 text-sm">
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Name</dt><dd class="font-medium">{{ b.winner.name }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">AID</dt><dd class="font-medium">{{ b.winner.aid }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Email</dt><dd class="text-right font-medium">{{ b.winner.email || '—' }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Contact</dt><dd class="font-medium">{{ b.winner.phone || '— not provided' }}</dd></div>
-              <div class="flex justify-between gap-3"><dt class="text-slate-500">Address</dt><dd class="max-w-[60%] text-right font-medium">{{ b.winner.address || '— not provided' }}</dd></div>
-            </dl>
-          </div>
-        </div>
+        <button v-if="b.status === 'open'" class="btn-ghost px-3 py-1.5 text-sm text-rose-600" @click="cancelBatch(b)">Cancel</button>
+        <button v-else-if="b.winner" class="chip bg-accent-500 text-white" @click="tab = 'winners'">🎉 Winner drawn</button>
       </div>
       <p v-if="!batches.length" class="card p-8 text-center text-slate-500">No batches.</p>
+    </div>
+
+    <!-- Winners: full details for every drawn pool, for shipping the prize -->
+    <div v-show="tab === 'winners'" class="space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-sm text-slate-500">{{ wonBatches.length }} winner{{ wonBatches.length === 1 ? '' : 's' }} drawn.</p>
+        <input v-model="winnerQ" class="input max-w-xs text-sm" placeholder="Search winner, product, pool…" />
+      </div>
+
+      <div v-for="b in filteredWinners" :key="b.id" class="card grid gap-4 border-l-4 border-accent-500 p-4 sm:grid-cols-2">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-wide text-slate-400">Pool</p>
+          <dl class="mt-1 space-y-0.5 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Pool ID</dt><dd class="font-medium">#{{ b.id }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Price band</dt><dd class="font-medium">{{ b.club }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Draw no.</dt><dd class="font-medium">Draw-{{ b.batch_no }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Total collected</dt><dd class="font-medium">{{ money(b.pooled) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Drawn on</dt><dd class="font-medium">{{ b.drawn_at ? new Date(b.drawn_at).toLocaleString('en-IN') : '—' }}</dd></div>
+          </dl>
+          <p class="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Winning product</p>
+          <dl class="mt-1 space-y-0.5 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Name</dt><dd class="text-right font-medium">{{ b.winner.product_name }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Value</dt><dd class="font-medium">{{ money(b.winner.product_value) }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Advance paid</dt><dd class="font-medium">{{ money(b.winner.advance_paid) }}</dd></div>
+          </dl>
+        </div>
+        <div class="rounded-xl bg-accent-500/5 p-3">
+          <p class="text-xs font-semibold uppercase tracking-wide text-accent-600">🏆 Winner</p>
+          <dl class="mt-1 space-y-0.5 text-sm">
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Name</dt><dd class="font-medium">{{ b.winner.name }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">AID</dt><dd class="font-medium">{{ b.winner.aid }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Email</dt><dd class="text-right font-medium">{{ b.winner.email || '—' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Contact</dt><dd class="font-medium">{{ b.winner.phone || '— not provided' }}</dd></div>
+            <div class="flex justify-between gap-3"><dt class="text-slate-500">Address</dt><dd class="max-w-[60%] text-right font-medium">{{ b.winner.address || '— not provided' }}</dd></div>
+          </dl>
+        </div>
+      </div>
+      <p v-if="!wonBatches.length" class="card p-8 text-center text-slate-500">No winners yet — they appear here the moment a pool fills and draws.</p>
+      <p v-else-if="!filteredWinners.length" class="card p-8 text-center text-slate-500">No winners match “{{ winnerQ }}”.</p>
     </div>
 
     <!-- Homepage slider -->

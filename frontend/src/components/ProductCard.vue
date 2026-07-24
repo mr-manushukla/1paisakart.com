@@ -18,7 +18,8 @@ const cart = useCartStore()
  */
 function onAdd() {
   const canBuy = props.product.allow_full_buy && props.product.stock > 0
-  const canDraw = !!props.product.draw_eligible
+  // Already holding a 1% seat for this item? Don't offer it again (one per pool).
+  const canDraw = !!props.product.draw_eligible && !props.product.already_booked
 
   if (canBuy && canDraw) return openBuyOptions(props.product)
 

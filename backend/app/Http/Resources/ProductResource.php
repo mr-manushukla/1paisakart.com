@@ -31,6 +31,10 @@ class ProductResource extends JsonResource
             'allow_full_buy' => $this->allow_full_buy,
             'draw_eligible' => $this->isDrawEligible($request), // 1% draw is global, not per-product
             'entry_price' => $this->isDrawEligible($request) ? $this->entryPrice() : null,
+            // True when the signed-in customer already holds a seat for THIS product
+            // in the current open pool — the UI hides the 1% option, and the payment
+            // boundary refuses it too (one seat per product per pool).
+            'already_booked' => in_array($this->id, $this->bookedProductIds($request), true),
             'max_seats_per_user' => (int) config('draw.max_entries_per_user', 10),
             'max_wallet_applicable' => $this->maxWalletApplicable(),
             'rating' => $this->reviews_avg_rating !== null ? round((float) $this->reviews_avg_rating, 1) : null,
@@ -86,6 +90,26 @@ class ProductResource extends JsonResource
             'filled' => $filled,
             'remaining' => $size - $filled,
         ];
+    }
+
+    /**
+     * Product ids the signed-in customer already holds a seat for in a still-OPEN
+     * pool — fetched once per request (no N+1). A pool that has already drawn is
+     * excluded, so they can book that product again in the next pool.
+     */
+    private function bookedProductIds(Request $request): array
+    {
+        if (! $request->user()) {
+            return [];
+        }
+        if (! $request->attributes->has('booked_product_ids')) {
+            $request->attributes->set('booked_product_ids', $request->user()
+                ->drawEntries()
+                ->whereHas('batch', fn ($q) => $q->where('status', 'open'))
+                ->pluck('product_id')->all());
+        }
+
+        return $request->attributes->get('booked_product_ids');
     }
 
     /** The auth user's wished product ids — fetched once per request, no N+1. */

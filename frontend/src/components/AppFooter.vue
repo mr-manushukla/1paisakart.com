@@ -14,6 +14,7 @@ import { RouterLink } from 'vue-router'
         <ul class="mt-2 space-y-1 text-sm text-slate-500">
           <li><RouterLink to="/shop" class="hover:text-brand-700">All products</RouterLink></li>
           <li><RouterLink to="/shop?mode=draw" class="hover:text-brand-700">1% Draws</RouterLink></li>
+          <li><RouterLink to="/winners" class="hover:text-brand-700">🏆 Winners</RouterLink></li>
         </ul>
       </div>
       <div>
