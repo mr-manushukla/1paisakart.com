@@ -15,6 +15,7 @@ const cBlank = () => ({ code: '', type: 'percent', value: 10, minOrderR: '', max
 const cForm = ref(cBlank())
 
 const newCat = ref('')
+const newCatIcon = ref('')
 const vendorForm = ref({ name: '', email: '', password: '', shop_name: '' })
 
 // Customer pool-participation lookup
@@ -87,7 +88,17 @@ onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSetti
 
 async function addCat() {
   if (!newCat.value) return
-  try { await api.post('/admin/categories', { name: newCat.value }); newCat.value = ''; await loadCats(); toast('Category added') }
+  try {
+    await api.post('/admin/categories', { name: newCat.value, icon: newCatIcon.value || null })
+    newCat.value = ''; newCatIcon.value = ''
+    await loadCats(); toast('Category added')
+  } catch (e) { toast(apiError(e), 'error') }
+}
+/** Set the emoji shown on the home tile for a category. */
+async function setCatIcon(c) {
+  const icon = prompt(`Emoji for “${c.name}”`, c.icon || '')
+  if (icon === null) return
+  try { await api.put(`/admin/categories/${c.id}`, { name: c.name, icon: icon || null }); await loadCats(); toast('Icon updated') }
   catch (e) { toast(apiError(e), 'error') }
 }
 async function delCat(c) {
@@ -160,13 +171,18 @@ async function saveSlides() {
 
     <!-- Categories -->
     <div v-show="tab === 'categories'" class="mx-auto max-w-xl">
-      <form class="mb-4 flex gap-2" @submit.prevent="addCat">
-        <input v-model="newCat" class="input" placeholder="New category name" />
+      <form class="mb-2 flex gap-2" @submit.prevent="addCat">
+        <input v-model="newCatIcon" class="input w-16 text-center" maxlength="4" placeholder="🏷️" aria-label="Category icon" />
+        <input v-model="newCat" class="input flex-1" placeholder="New category name" />
         <button class="btn-primary">Add</button>
       </form>
+      <p class="mb-4 text-xs text-slate-500">The icon shows on the home page tile. Vendors pick these categories for their products.</p>
       <div class="card divide-y divide-slate-100">
         <div v-for="c in categories" :key="c.id" class="flex items-center justify-between px-4 py-3">
-          <span>{{ c.name }} <span class="text-sm text-slate-400">· {{ c.products_count }} products</span></span>
+          <span class="flex items-center gap-2">
+            <button class="text-xl" :title="`Change icon for ${c.name}`" @click="setCatIcon(c)">{{ c.icon || '🏷️' }}</button>
+            <span>{{ c.name }} <span class="text-sm text-slate-400">· {{ c.products_count }} products</span></span>
+          </span>
           <button class="text-rose-500 hover:text-rose-700" @click="delCat(c)">✕</button>
         </div>
       </div>

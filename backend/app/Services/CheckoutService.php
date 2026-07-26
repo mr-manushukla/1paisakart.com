@@ -7,7 +7,9 @@ use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\VendorNewOrderNotification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /**
  * 100% buy. Wallet credit may cover at most wallet_cap_pct% (10%) of EACH item's
@@ -25,13 +27,18 @@ class CheckoutService
      * @param  Payment|null  $payment  already-captured gateway payment (Razorpay); a
      *                                 stub row is written only when this is null.
      */
-    public function place(User $user, array $lines, bool $applyWallet, ?Payment $payment = null, ?string $couponCode = null): Order
+    public function place(User $user, array $lines, bool $applyWallet, ?Payment $payment = null, ?string $couponCode = null, ?int $addressId = null): Order
     {
         if (empty($lines)) {
             throw new BusinessException('Cart is empty.');
         }
 
-        return DB::transaction(function () use ($user, $lines, $applyWallet, $payment, $couponCode) {
+        // Deliver only to an address that belongs to this customer.
+        if ($addressId !== null && ! $user->addresses()->whereKey($addressId)->exists()) {
+            throw new BusinessException('That delivery address is not on your account.');
+        }
+
+        return DB::transaction(function () use ($user, $lines, $applyWallet, $payment, $couponCode, $addressId) {
             $subtotal = 0;
             $walletCap = 0;   // sum of per-item 10% caps
             $prepared = [];
@@ -66,6 +73,7 @@ class CheckoutService
 
             $order = Order::create([
                 'user_id' => $user->id,
+                'address_id' => $addressId,
                 'subtotal' => $subtotal,
                 'coupon_id' => $applied['coupon']->id ?? null,
                 'discount' => $discount,
@@ -104,7 +112,37 @@ class CheckoutService
                 ]);
             }
 
+            // Tell each vendor about their part of the order once the sale commits.
+            DB::afterCommit(fn () => $this->notifyVendors($order, $prepared));
+
             return $order->load('items');
         });
+    }
+
+    /**
+     * One email per shop, listing only that shop's lines. Best-effort: a failing
+     * mailbox must never break a paid order, so every send is caught and logged.
+     *
+     * @param  array<int, array{0:Product, 1:int, 2:int}>  $prepared
+     */
+    private function notifyVendors(Order $order, array $prepared): void
+    {
+        $byShop = [];
+        foreach ($prepared as [$product, $qty, $lineTotal]) {
+            $byShop[$product->shop_id]['lines'][] = ['name' => $product->name, 'qty' => $qty, 'line_total' => $lineTotal];
+            $byShop[$product->shop_id]['total'] = ($byShop[$product->shop_id]['total'] ?? 0) + $lineTotal;
+        }
+
+        foreach ($byShop as $shopId => $group) {
+            try {
+                $vendor = \App\Models\Shop::with('user')->find($shopId)?->user;
+                if (! $vendor) {
+                    continue;
+                }
+                $vendor->notify(new VendorNewOrderNotification($order, $group['lines'], $group['total']));
+            } catch (\Throwable $e) {
+                Log::warning("Vendor order email failed for shop #{$shopId} on order #{$order->id}: ".$e->getMessage());
+            }
+        }
     }
 }

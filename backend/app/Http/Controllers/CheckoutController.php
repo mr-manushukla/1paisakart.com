@@ -20,6 +20,7 @@ class CheckoutController extends Controller
             'items.*.qty' => ['required', 'integer', 'min:1'],
             'apply_wallet' => ['boolean'],
             'coupon_code' => ['nullable', 'string', 'max:40'],
+            'address_id' => ['nullable', 'integer', 'exists:addresses,id'],
         ]);
 
         $order = $this->checkout->place(
@@ -28,6 +29,7 @@ class CheckoutController extends Controller
             (bool) ($data['apply_wallet'] ?? false),
             null,
             $data['coupon_code'] ?? null,
+            $data['address_id'] ?? null,
         );
 
         return new OrderResource($order->load('items.product'));

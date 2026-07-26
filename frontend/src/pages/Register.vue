@@ -8,7 +8,8 @@ import PasswordField from '../components/PasswordField.vue'
 const auth = useAuthStore()
 const router = useRouter()
 
-const form = ref({ name: '', email: '', phone: '', address: '', password: '', password_confirmation: '' })
+// No address here — it's asked for at checkout, where delivery actually matters.
+const form = ref({ name: '', email: '', phone: '', password: '', password_confirmation: '' })
 const busy = ref(false)
 
 async function submit() {
@@ -34,8 +35,7 @@ async function submit() {
       <form class="mt-5 space-y-3" @submit.prevent="submit">
         <input v-model="form.name" class="input" placeholder="Full name" required />
         <input v-model="form.email" type="email" class="input" placeholder="Email" required />
-        <input v-model="form.phone" type="tel" class="input" placeholder="Mobile number (for prize delivery)" />
-        <input v-model="form.address" class="input" placeholder="Delivery address" />
+        <input v-model="form.phone" type="tel" class="input" placeholder="Mobile number (you can sign in with this)" />
         <PasswordField v-model="form.password" placeholder="Password (min 8 chars)" />
         <PasswordField v-model="form.password_confirmation" placeholder="Confirm password" />
         <button class="btn-primary w-full" :disabled="busy">{{ busy ? 'Creating…' : 'Create account' }}</button>

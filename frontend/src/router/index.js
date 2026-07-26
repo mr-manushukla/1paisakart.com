@@ -13,6 +13,8 @@ const routes = [
 
   { path: '/checkout', name: 'checkout', component: () => import('../pages/Checkout.vue'), meta: { auth: true, role: 'customer' } },
   { path: '/wallet', name: 'wallet', component: () => import('../pages/Wallet.vue'), meta: { auth: true, role: 'customer' } },
+  { path: '/profile', name: 'profile', component: () => import('../pages/Profile.vue'), meta: { auth: true } },
+  { path: '/addresses', name: 'addresses', component: () => import('../pages/Addresses.vue'), meta: { auth: true, role: 'customer' } },
   { path: '/orders', name: 'orders', component: () => import('../pages/Orders.vue'), meta: { auth: true, role: 'customer' } },
   { path: '/my-draws', name: 'my-draws', component: () => import('../pages/MyDraws.vue'), meta: { auth: true, role: 'customer' } },
 

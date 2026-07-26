@@ -35,9 +35,10 @@ export const useAuthStore = defineStore('auth', {
         this.ready = true
       }
     },
-    async login(email, password) {
+    /** @param {string} login an email address or a phone number */
+    async login(login, password) {
       await csrf()
-      const { data } = await api.post('/login', { email, password })
+      const { data } = await api.post('/login', { login, password })
       this.user = data.data
       useCartFor(this.user.id)
       useWishlistStore().syncOnLogin()

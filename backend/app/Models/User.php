@@ -38,6 +38,7 @@ class User extends Authenticatable
     public function drawEntries(): HasMany { return $this->hasMany(DrawEntry::class); }
     public function walletTransactions(): HasMany { return $this->hasMany(WalletTransaction::class); }
     public function wishlists(): HasMany { return $this->hasMany(Wishlist::class); }
+    public function addresses(): HasMany { return $this->hasMany(Address::class); }
 
     /** Draw participation at a glance — same numbers for the customer and for admin. */
     public function drawSummary(): array

@@ -37,6 +37,9 @@ class ProductResource extends JsonResource
             'already_booked' => in_array($this->id, $this->bookedProductIds($request), true),
             'max_seats_per_user' => (int) config('draw.max_entries_per_user', 10),
             'max_wallet_applicable' => $this->maxWalletApplicable(),
+            // Delivery: an empty list means Pan India (see ProductServiceArea).
+            'service_areas' => $this->whenLoaded('serviceAreas', fn () => $this->serviceAreas->pluck('prefix')->values()),
+            'ships_pan_india' => $this->whenLoaded('serviceAreas', fn () => $this->serviceAreas->isEmpty()),
             'rating' => $this->reviews_avg_rating !== null ? round((float) $this->reviews_avg_rating, 1) : null,
             'reviews_count' => $this->reviews_count ?? 0,
             'category' => $this->whenLoaded('category', fn () => [

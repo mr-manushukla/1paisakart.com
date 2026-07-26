@@ -14,9 +14,10 @@ class WinnerController extends Controller
 {
     public function index()
     {
+        // NOTE: the pool's collected total is deliberately NOT exposed here — it's
+        // admin-only. Keep it out of this payload, not just hidden in the UI.
         return DrawBatch::where('status', 'drawn')
             ->with(['club:id,label', 'winnerEntry.product', 'winnerEntry.user', 'entries.user', 'entries.product'])
-            ->withSum('entries as pooled', 'amount')
             ->latest('drawn_at')
             ->paginate(12)
             ->through(function (DrawBatch $b) {
@@ -34,7 +35,6 @@ class WinnerController extends Controller
                     'club' => $b->club?->label,
                     'batch_no' => $b->batch_no,
                     'size' => $b->size,
-                    'pooled' => (int) ($b->pooled ?? 0), // total advances collected, paise
                     'drawn_at' => $b->drawn_at,
                     'winner' => $w ? [
                         'seat' => $participants->firstWhere('is_winner')['seat'] ?? null,

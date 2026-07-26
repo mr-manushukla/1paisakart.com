@@ -12,13 +12,20 @@ class AuthController extends Controller
 {
     public function register(Request $request): UserResource
     {
+        // No address at sign-up — it's collected at checkout, where it's actually
+        // needed. Phone must be unique because it doubles as a login handle.
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'email' => ['required', 'email', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:20'],
-            'address' => ['nullable', 'string', 'max:500'],
+            'phone' => ['nullable', 'string', 'max:20', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
+
+        // Store digits only, so a number typed as "+91 98765 43210" still matches
+        // at login however the customer types it next time.
+        if (! empty($data['phone'])) {
+            $data['phone'] = preg_replace('/\D/', '', $data['phone']);
+        }
 
         // Public sign-up always creates a customer. Vendors are created by the admin.
         $user = new User($data);
@@ -31,15 +38,28 @@ class AuthController extends Controller
         return new UserResource($user);
     }
 
+    /**
+     * Sign in with EITHER an email address or a phone number, plus the password.
+     * `login` is the single field the form sends; `email` is still accepted so
+     * older clients keep working.
+     */
     public function login(Request $request): UserResource
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
+            'login' => ['required_without:email', 'nullable', 'string', 'max:120'],
+            'email' => ['required_without:login', 'nullable', 'string', 'max:120'],
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::attempt($data, $request->boolean('remember'))) {
-            throw ValidationException::withMessages(['email' => 'These credentials do not match our records.']);
+        $handle = trim($data['login'] ?? $data['email'] ?? '');
+        // Digits-only (ignoring +, spaces, dashes) means they typed a phone number.
+        $field = preg_match('/^\+?[\d\s-]+$/', $handle) ? 'phone' : 'email';
+        $value = $field === 'phone' ? preg_replace('/\D/', '', $handle) : $handle;
+
+        $credentials = [$field => $value, 'password' => $data['password']];
+
+        if (! Auth::attempt($credentials, $request->boolean('remember'))) {
+            throw ValidationException::withMessages(['login' => 'These credentials do not match our records.']);
         }
 
         $request->session()->regenerate();

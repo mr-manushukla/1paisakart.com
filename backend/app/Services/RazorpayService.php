@@ -193,6 +193,7 @@ class RazorpayService
                 'draw_items' => $drawIds,
                 'apply_wallet' => $applyWallet,
                 'coupon_code' => $applied ? $applied['coupon']->code : null,
+                'address_id' => $input['address_id'] ?? null,
             ],
             $lines && $drawIds ? 'Order + 1% booking' : ($drawIds ? '1% advance booking' : 'Order payment'),
         ];
@@ -249,7 +250,7 @@ class RazorpayService
                 $result = ['type' => 'order', 'seats' => 0];
 
                 if (! empty($p['items'])) {
-                    $order = $this->checkout->place($user, $p['items'], (bool) ($p['apply_wallet'] ?? false), $payment, $p['coupon_code'] ?? null);
+                    $order = $this->checkout->place($user, $p['items'], (bool) ($p['apply_wallet'] ?? false), $payment, $p['coupon_code'] ?? null, $p['address_id'] ?? null);
                     $payment->update(['order_id' => $order->id]);
                     $result['id'] = $order->id;
                 }

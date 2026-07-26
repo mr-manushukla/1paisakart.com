@@ -7,6 +7,8 @@ import { useWishlistStore } from '../stores/wishlist'
 import { money } from '../lib/money'
 import { toast } from '../lib/toast'
 import CategoryStrip from './CategoryStrip.vue'
+import MobileDrawer from './MobileDrawer.vue'
+import PinSelector from './PinSelector.vue'
 
 const auth = useAuthStore()
 const cart = useCartStore()
@@ -14,6 +16,7 @@ const wishlist = useWishlistStore()
 const router = useRouter()
 const q = ref('')
 const menuOpen = ref(false)
+const drawerOpen = ref(false)
 
 function search() {
   router.push({ name: 'shop', query: q.value ? { q: q.value } : {} })
@@ -21,6 +24,7 @@ function search() {
 async function logout() {
   await auth.logout()
   menuOpen.value = false
+  drawerOpen.value = false
   toast('Signed out')
   router.push({ name: 'home' })
 }
@@ -33,15 +37,25 @@ async function logout() {
     </div>
 
     <div class="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
+      <!-- Hamburger: mobile only, opens the account drawer -->
+      <button
+        class="-ml-1 flex h-9 w-9 flex-none items-center justify-center rounded-lg text-xl text-slate-700 hover:bg-slate-100 md:hidden"
+        aria-label="Open menu"
+        @click="drawerOpen = true"
+      >☰</button>
+
       <RouterLink to="/" class="flex items-center gap-1 font-display text-xl font-extrabold">
         <span class="text-brand-600">1paisa</span><span class="text-accent-500">kart</span>
       </RouterLink>
 
-      <!-- Desktop search (mobile gets its own full-width row below) -->
-      <form class="relative hidden flex-1 md:block" @submit.prevent="search">
-        <input v-model="q" class="input pl-10" placeholder="Search products…" />
-        <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
-      </form>
+      <!-- Desktop search + delivery PIN (mobile gets its own rows below) -->
+      <div class="hidden flex-1 md:block">
+        <form class="relative" @submit.prevent="search">
+          <input v-model="q" class="input pl-10" placeholder="Search products…" />
+          <span class="absolute left-3 top-2.5 text-slate-400">🔍</span>
+        </form>
+        <div class="mt-1"><PinSelector /></div>
+      </div>
 
       <nav class="ml-auto flex items-center gap-4 text-sm font-medium text-slate-600">
         <RouterLink to="/shop" class="hidden hover:text-brand-700 sm:block">Shop</RouterLink>
@@ -96,7 +110,11 @@ async function logout() {
         />
         <span class="pointer-events-none absolute left-6 top-3 text-brand-600">🔍</span>
       </form>
+      <!-- Delivery location, Amazon-style: right under the search bar -->
+      <div class="px-4 pb-2"><PinSelector /></div>
       <CategoryStrip />
     </div>
+
+    <MobileDrawer v-model="drawerOpen" @logout="logout" />
   </header>
 </template>

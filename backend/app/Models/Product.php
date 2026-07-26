@@ -63,6 +63,29 @@ class Product extends Model
     public function category(): BelongsTo { return $this->belongsTo(Category::class); }
     public function drawEntries(): HasMany { return $this->hasMany(DrawEntry::class); }
     public function reviews(): HasMany { return $this->hasMany(Review::class); }
+    public function serviceAreas(): HasMany { return $this->hasMany(ProductServiceArea::class); }
+
+    /** No service areas at all means the product ships anywhere in India. */
+    public function shipsPanIndia(): bool
+    {
+        return $this->serviceAreas()->count() === 0;
+    }
+
+    /**
+     * Products deliverable to a PIN: those with no restriction, plus those
+     * holding any prefix of that PIN.
+     */
+    public function scopeServiceableIn($query, ?string $pincode)
+    {
+        $pin = preg_replace('/\D/', '', (string) $pincode);
+        if (strlen($pin) < 6) {
+            return $query; // no PIN chosen (or incomplete) — don't filter
+        }
+
+        return $query->where(fn ($q) => $q
+            ->whereDoesntHave('serviceAreas')
+            ->orWhereHas('serviceAreas', fn ($s) => $s->whereIn('prefix', ProductServiceArea::prefixesOf($pin))));
+    }
 
     /** The price-band club this product falls into — based on what it actually sells for. */
     public function club(): ?Club

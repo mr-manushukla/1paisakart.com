@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\PlatformController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
+use App\Http\Controllers\AddressController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CheckoutController;
 use App\Http\Controllers\DrawController;
@@ -30,10 +31,11 @@ Route::post('/logout', [AuthController::class, 'logout']);
 // ---- Public catalog + draw transparency ----
 Route::get('/categories', fn () => \App\Models\Category::query()
     ->withCount(['products' => fn ($q) => $q->where('status', 'active')])
-    ->orderBy('name')->get(['id', 'name', 'slug']));
+    ->orderBy('name')->get(['id', 'name', 'slug', 'icon']));
 Route::get('/slides', [SlideController::class, 'index']); // homepage hero, admin-editable
 Route::get('/winners', [WinnerController::class, 'index']); // public winner board
 Route::get('/products', [ProductController::class, 'index']);
+Route::get('/price-range', [ProductController::class, 'priceRange']); // bounds for the price filter
 Route::get('/products/{product:slug}', [ProductController::class, 'show']);
 Route::get('/products/{product:slug}/batch', [ProductController::class, 'batch']); // who's in the pool
 Route::get('/products/{product:slug}/related', [ProductController::class, 'related']); // cross-sell
@@ -56,6 +58,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/checkout', [CheckoutController::class, 'store']);
         Route::get('/wallet', [WalletController::class, 'show']);
         Route::get('/orders', [OrderController::class, 'index']);
+        Route::get('/addresses', [AddressController::class, 'index']);
+        Route::post('/addresses', [AddressController::class, 'store']);
+        Route::put('/addresses/{address}', [AddressController::class, 'update']);
+        Route::delete('/addresses/{address}', [AddressController::class, 'destroy']);
         Route::get('/wishlist', [WishlistController::class, 'index']);
         Route::post('/products/{product:slug}/wishlist', [WishlistController::class, 'toggle']);
     });

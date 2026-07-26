@@ -1,21 +1,27 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '../lib/api'
 import HeroSlider from '../components/HeroSlider.vue'
 import CategoryTiles from '../components/CategoryTiles.vue'
 import ProductCard from '../components/ProductCard.vue'
+import { useDeliveryStore } from '../stores/delivery'
 
+const delivery = useDeliveryStore()
 const products = ref([])
 const loading = ref(true)
 
-onMounted(async () => {
+async function load() {
+  loading.value = true
   try {
-    products.value = (await api.get('/products')).data.data
+    products.value = (await api.get('/products', { params: delivery.params() })).data.data
   } finally {
     loading.value = false
   }
-})
+}
+onMounted(load)
+// Changing the delivery PIN changes what's actually buyable here.
+watch(() => delivery.pincode, load)
 
 const draws = computed(() => products.value.filter((p) => p.draw_eligible).slice(0, 4))
 const bestSellers = computed(() =>

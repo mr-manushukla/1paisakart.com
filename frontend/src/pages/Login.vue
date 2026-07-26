@@ -9,7 +9,8 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const email = ref('')
+// One field, either handle: an email address or a phone number.
+const login = ref('')
 const password = ref('')
 const busy = ref(false)
 
@@ -18,12 +19,12 @@ const demos = [
   { label: 'Vendor', email: 'vendor1@1paisakart.test' },
   { label: 'Admin', email: 'admin@1paisakart.test' },
 ]
-function fill(d) { email.value = d.email; password.value = 'password' }
+function fill(d) { login.value = d.email; password.value = 'password' }
 
 async function submit() {
   busy.value = true
   try {
-    await auth.login(email.value, password.value)
+    await auth.login(login.value, password.value)
     toast(`Welcome back, ${auth.user.name.split(' ')[0]}!`)
     router.push(route.query.redirect || { name: auth.homeRouteName })
   } catch (e) {
@@ -41,7 +42,7 @@ async function submit() {
       <p class="mt-1 text-sm text-slate-500">Welcome back to 1paisakart.</p>
 
       <form class="mt-5 space-y-3" @submit.prevent="submit">
-        <input v-model="email" type="email" class="input" placeholder="Email" required />
+        <input v-model="login" type="text" inputmode="email" autocomplete="username" class="input" placeholder="Email or mobile number" required />
         <PasswordField v-model="password" placeholder="Password" />
         <button class="btn-primary w-full" :disabled="busy">{{ busy ? 'Signing in…' : 'Sign in' }}</button>
       </form>

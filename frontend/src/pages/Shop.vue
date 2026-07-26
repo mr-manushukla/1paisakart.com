@@ -3,13 +3,39 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import api from '../lib/api'
 import ProductCard from '../components/ProductCard.vue'
+import PriceRangeFilter from '../components/PriceRangeFilter.vue'
+import { useDeliveryStore } from '../stores/delivery'
 
 const route = useRoute()
 const router = useRouter()
+const delivery = useDeliveryStore()
 const products = ref([])
 const meta = ref({ current_page: 1, last_page: 1 })
 const categories = ref([])
 const loading = ref(true)
+
+// Price is handled in whole rupees in the UI and paise on the wire.
+const bounds = ref({ min: 0, max: 100000 })
+const price = ref({ from: 0, to: 100000 })
+
+async function loadBounds() {
+  const { data } = await api.get('/price-range', { params: delivery.params() })
+  bounds.value = { min: Math.floor(data.min / 100), max: Math.ceil(data.max / 100) }
+  price.value = {
+    from: route.query.min_price ? Math.floor(route.query.min_price / 100) : bounds.value.min,
+    to: route.query.max_price ? Math.ceil(route.query.max_price / 100) : bounds.value.max,
+  }
+}
+
+/** Push the slider values into the URL so filters survive reload and sharing. */
+function applyPrice() {
+  const atMin = price.value.from <= bounds.value.min
+  const atMax = price.value.to >= bounds.value.max
+  setQuery({
+    min_price: atMin ? undefined : price.value.from * 100,
+    max_price: atMax ? undefined : price.value.to * 100,
+  })
+}
 
 async function load() {
   loading.value = true
@@ -19,7 +45,10 @@ async function load() {
         q: route.query.q || undefined,
         category: route.query.category || undefined,
         mode: route.query.mode || undefined,
+        min_price: route.query.min_price || undefined,
+        max_price: route.query.max_price || undefined,
         page: route.query.page || 1,
+        ...delivery.params(),
       },
     })
     products.value = data.data
@@ -36,9 +65,12 @@ function setQuery(patch) {
 onMounted(async () => {
   const { data } = await api.get('/categories')
   categories.value = data
+  await loadBounds()
   load()
 })
 watch(() => route.query, load)
+// A new delivery PIN changes both which products exist and their price bounds.
+watch(() => delivery.pincode, async () => { await loadBounds(); load() })
 </script>
 
 <template>
@@ -52,6 +84,9 @@ watch(() => route.query, load)
           <button class="rounded-lg px-3 py-1.5 text-left" :class="route.query.mode === 'draw' ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: 'draw' })">1% Draws</button>
           <button class="rounded-lg px-3 py-1.5 text-left" :class="route.query.mode === 'buy' ? 'bg-brand-50 font-semibold text-brand-700' : 'hover:bg-slate-50'" @click="setQuery({ mode: 'buy' })">Buy now</button>
         </div>
+      </div>
+      <div class="card p-4">
+        <PriceRangeFilter v-model="price" :min="bounds.min" :max="bounds.max" @apply="applyPrice" />
       </div>
       <div class="card p-4">
         <h3 class="mb-3 font-semibold">Categories</h3>
@@ -73,7 +108,12 @@ watch(() => route.query, load)
       <div v-if="loading" class="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <div v-for="n in 6" :key="n" class="card h-72 animate-pulse bg-slate-50" />
       </div>
-      <div v-else-if="!products.length" class="card p-10 text-center text-slate-500">No products found.</div>
+      <div v-else-if="!products.length" class="card p-10 text-center text-slate-500">
+        No products found.
+        <span v-if="delivery.active" class="mt-1 block text-sm">
+          Nothing here delivers to <strong>{{ delivery.pincode }}</strong> — try another PIN code.
+        </span>
+      </div>
       <div v-else class="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <ProductCard v-for="p in products" :key="p.id" :product="p" />
       </div>

@@ -7,6 +7,7 @@ import { useCartStore } from '../stores/cart'
 import { useAuthStore } from '../stores/auth'
 import { toast, apiError } from '../lib/toast'
 import { payAndFulfil } from '../lib/razorpay'
+import AddressBook from '../components/AddressBook.vue'
 
 const cart = useCartStore()
 const auth = useAuthStore()
@@ -14,6 +15,10 @@ const router = useRouter()
 
 const applyWallet = ref(true)
 const placing = ref(false)
+// Delivery address is collected here, not at sign-up. Only physical purchases
+// need one — a cart of pure 1% bookings has nothing to ship yet.
+const addressId = ref(null)
+const needsAddress = computed(() => cart.buyItems.length > 0)
 
 // Coupons
 const couponCode = ref('')
@@ -48,6 +53,9 @@ async function applyCoupon() {
 function removeCoupon() { coupon.value = null; couponCode.value = '' }
 
 async function placeOrder() {
+  if (needsAddress.value && !addressId.value) {
+    return toast('Choose a delivery address first', 'error')
+  }
   placing.value = true
   try {
     const items = cart.buyItems.map((i) => ({ product_id: i.product_id, qty: i.qty }))
@@ -55,7 +63,7 @@ async function placeOrder() {
 
     // Wallet covered the whole purchase and there's nothing to book → no gateway needed.
     if (payable.value <= 0 && !drawItems.length) {
-      const { data } = await api.post('/checkout', { items, apply_wallet: applyWallet.value, coupon_code: coupon.value?.code ?? null })
+      const { data } = await api.post('/checkout', { items, apply_wallet: applyWallet.value, coupon_code: coupon.value?.code ?? null, address_id: addressId.value })
       cart.clear()
       await auth.refresh()
       toast(`Order #${data.data.id} placed 🎉`)
@@ -68,6 +76,7 @@ async function placeOrder() {
       draw_items: drawItems,
       apply_wallet: applyWallet.value,
       coupon_code: coupon.value?.code ?? null,
+      address_id: addressId.value,
     })
     // User closed checkout — keep the cart so they can finish later.
     if (!result) return toast('Payment cancelled — your cart has been kept', 'error')
@@ -100,6 +109,12 @@ async function placeOrder() {
 
     <div v-else class="grid gap-6 lg:grid-cols-[1fr_340px]">
       <div class="space-y-4">
+        <!-- Delivery address: asked for here, where it's actually needed -->
+        <div v-if="needsAddress" class="card p-4">
+          <h2 class="mb-3 font-semibold">Delivery address</h2>
+          <AddressBook v-model="addressId" selectable />
+        </div>
+
         <div v-if="cart.buyItems.length" class="card divide-y divide-slate-100 p-2">
           <div v-for="i in cart.buyItems" :key="i.key" class="flex items-center justify-between px-3 py-3">
             <span>{{ i.name }} <span class="text-slate-400">× {{ i.qty }}</span></span>

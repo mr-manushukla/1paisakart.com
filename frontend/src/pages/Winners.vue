@@ -50,9 +50,8 @@ const toggle = (k) => { open.value = open.value === k ? null : k }
             <span class="text-xs text-slate-400">· Pool #{{ p.id }}</span>
           </div>
           <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+            <!-- The pool's collected total is admin-only; the API doesn't send it here. -->
             <span>Drawn {{ drawnOn(p.drawn_at) }}</span>
-            <span>·</span>
-            <span>Pool collected <strong class="text-slate-700">{{ money(p.pooled) }}</strong></span>
             <span>·</span>
             <span>{{ p.size }} seats</span>
           </div>

@@ -20,7 +20,7 @@ class ProductController extends Controller
     {
         return ProductResource::collection(
             $this->shop($request)->products()
-                ->with(['category'])
+                ->with(['category', 'serviceAreas'])
                 ->latest('id')->paginate(20)
         );
     }
@@ -32,19 +32,24 @@ class ProductController extends Controller
 
         $data['shop_id'] = $shop->id;
         $data['slug'] = $this->uniqueSlug($data['name']);
+        unset($data['service_areas']);              // own table, not a product column
         $product = Product::create($data);
+        $this->syncServiceAreas($product, $request);
 
         // The 1% draw is global and pools open lazily — nothing to set up here.
 
-        return new ProductResource($product->load('category'));
+        return new ProductResource($product->load(['category', 'serviceAreas']));
     }
 
     public function update(Request $request, Product $product): ProductResource
     {
         $this->authorizeOwner($request, $product);
-        $product->update($this->validated($request, $product));
+        $data = $this->validated($request, $product);
+        unset($data['service_areas']);              // own table, not a product column
+        $product->update($data);
+        $this->syncServiceAreas($product, $request);
 
-        return new ProductResource($product->fresh('category'));
+        return new ProductResource($product->fresh(['category', 'serviceAreas']));
     }
 
     public function destroy(Request $request, Product $product): array
@@ -144,7 +149,26 @@ class ProductController extends Controller
             'specs.*.value' => ['required_with:specs', 'string', 'max:300'],
             'platform_fee_pct' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'status' => ['in:active,inactive'],
-        ]);
+            // Delivery: an empty list means Pan India. Each entry is a PIN prefix,
+            // so "110" covers all of Delhi and "122001" one exact PIN.
+            'service_areas' => ['nullable', 'array', 'max:50'],
+            'service_areas.*' => ['string', 'regex:/^\d{1,6}$/'],
+        ], ['service_areas.*.regex' => 'Each delivery area must be 1–6 digits of a PIN code.']);
+    }
+
+    /** Replace a product's serviceable PIN prefixes. Empty/absent = Pan India. */
+    private function syncServiceAreas(Product $product, Request $request): void
+    {
+        if (! $request->has('service_areas')) {
+            return; // field not sent — leave delivery settings untouched
+        }
+
+        $prefixes = collect($request->input('service_areas', []))
+            ->map(fn ($p) => preg_replace('/\D/', '', (string) $p))
+            ->filter()->unique()->values();
+
+        $product->serviceAreas()->delete();
+        $product->serviceAreas()->createMany($prefixes->map(fn ($p) => ['prefix' => $p])->all());
     }
 
     private function shop(Request $request)

@@ -19,6 +19,7 @@ class CategoryController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:120'],
             'parent_id' => ['nullable', 'exists:categories,id'],
+            'icon' => ['nullable', 'string', 'max:16'],   // emoji shown on the home tile
         ]);
         $data['slug'] = Str::slug($data['name']).'-'.Str::lower(Str::random(3));
 
@@ -30,6 +31,7 @@ class CategoryController extends Controller
         $category->update($request->validate([
             'name' => ['required', 'string', 'max:120'],
             'parent_id' => ['nullable', 'exists:categories,id'],
+            'icon' => ['nullable', 'string', 'max:16'],   // emoji shown on the home tile
         ]));
 
         return $category;

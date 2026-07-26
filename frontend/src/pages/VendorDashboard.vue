@@ -24,6 +24,8 @@ const SPEC_PRESETS = ['Model', 'Colour', 'Size', 'Material', 'Weight', 'Dimensio
 const blank = () => ({
   id: null, name: '', brand: '', category_id: '', description: '',
   priceR: '', salePriceR: '', stock: 0, allow_full_buy: true, status: 'active', specs: [],
+  // Delivery: blank = Pan India. Otherwise a comma-separated list of PIN prefixes.
+  serviceAreas: '',
 })
 const form = ref(blank())
 const current = ref(null)   // full product being edited (for the image manager)
@@ -82,6 +84,7 @@ function edit(p) {
     allow_full_buy: p.allow_full_buy,
     status: 'active',
     specs: (p.specs || []).map((s) => ({ ...s })),
+    serviceAreas: (p.service_areas || []).join(', '),
   }
   current.value = p
   window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -104,6 +107,8 @@ async function save() {
     allow_full_buy: form.value.allow_full_buy,
     status: form.value.status,
     specs: form.value.specs.filter((s) => s.label && s.value),
+    // Empty list = ships Pan India.
+    service_areas: String(form.value.serviceAreas).split(',').map((s) => s.replace(/\D/g, '')).filter(Boolean),
   }
   try {
     const { data } = form.value.id
@@ -168,6 +173,16 @@ async function remove(p) {
               <label class="w-24 flex-none text-xs text-slate-500">Stock<input v-model="form.stock" type="number" min="0" class="input" /></label>
             </div>
             <label class="flex items-center gap-2 text-sm"><input v-model="form.allow_full_buy" type="checkbox" /> Available to buy outright (100%)</label>
+
+            <label class="block text-xs text-slate-500">
+              Delivery areas — PIN codes
+              <input v-model="form.serviceAreas" class="input mt-1" placeholder="Leave blank for Pan India, e.g. 110, 1220, 122001" />
+            </label>
+            <p class="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
+              Blank means <strong>Pan India</strong>. Otherwise list PIN codes or their starting digits, separated by commas:
+              <strong>110</strong> covers all of Delhi, <strong>1220</strong> covers Gurugram, <strong>122001</strong> a single PIN.
+              Customers only see this product when their chosen PIN matches.
+            </p>
             <p class="rounded-lg bg-brand-50 px-3 py-2 text-xs text-brand-800">
               The <strong>1% lucky draw applies automatically</strong> to every product priced between ₹100 and ₹5,00,000 — no setup needed.
             </p>

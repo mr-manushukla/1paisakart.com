@@ -27,6 +27,7 @@ class PaymentController extends Controller
             'entry_id' => ['required_if:intent,balance', 'integer'],
             'apply_wallet' => ['boolean'],
             'coupon_code' => ['nullable', 'string', 'max:40'],
+            'address_id' => ['nullable', 'integer', 'exists:addresses,id'],
         ]);
 
         return $this->razorpay->createOrder($request->user(), $data);
