@@ -80,8 +80,20 @@ const testimonials = [
         </div>
         <div class="text-center">
           <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-600 font-bold text-white">3</div>
-          <p class="mt-2 font-semibold">Win it — or choose</p>
-          <p class="text-sm text-slate-500">The winner keeps their product for the 1%. Everyone else pays the remaining 99% to buy it, or moves the 1% to their 1% Wallet.</p>
+          <p class="mt-2 font-semibold">The winner keeps it for the 1%</p>
+          <!-- Everyone else picks one of these two. Spelled out as the options
+               themselves rather than a sentence about "choosing". -->
+          <div class="mt-3 space-y-2 text-left">
+            <div class="rounded-xl border-2 border-brand-600 bg-white px-3 py-2">
+              <p class="text-sm font-semibold text-brand-800">Buy Now @ product cost (99%)</p>
+              <p class="text-xs text-slate-500">(After deduction of 1% Advance)</p>
+            </div>
+            <p class="text-center text-xs font-semibold text-slate-400">OR</p>
+            <div class="rounded-xl border-2 border-accent-500/50 bg-white px-3 py-2">
+              <p class="text-sm font-semibold text-accent-700">Move 1% Advance into 1% Wallet</p>
+              <p class="text-xs text-slate-500">Buy any product at any time.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>

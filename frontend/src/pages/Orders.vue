@@ -7,7 +7,7 @@ import { money } from '../lib/money'
 const orders = ref([])
 const draws = ref([])
 const loading = ref(true)
-const filter = ref('all')   // all | purchases | draws
+const filter = ref('all')   // all | purchases | draws | winnings
 
 const statusChip = {
   paid: 'bg-brand-50 text-brand-700',
@@ -34,9 +34,16 @@ onMounted(async () => {
   }
 })
 
+/** Pools this customer actually won — the draw entry carries product + pool. */
+const wins = computed(() => draws.value.filter((d) => d.status === 'won'))
+
 /** Purchases and 1% bookings in one timeline, newest first. */
 const rows = computed(() => {
   const list = []
+  if (filter.value === 'winnings') {
+    wins.value.forEach((d) => list.push({ kind: 'draw', at: d.created_at, data: d }))
+    return list.sort((a, b) => new Date(b.at) - new Date(a.at))
+  }
   if (filter.value !== 'draws') {
     orders.value.forEach((o) => list.push({ kind: 'order', at: o.created_at, data: o }))
   }
@@ -56,12 +63,14 @@ const needsChoice = computed(() => draws.value.filter((d) => d.awaiting_choice).
 
     <div class="mb-4 flex gap-2">
       <button
-        v-for="f in [['all', 'All'], ['purchases', 'Purchases'], ['draws', '1% bookings']]"
+        v-for="f in [['all', 'All'], ['purchases', 'Purchases'], ['draws', '1% bookings'], ['winnings', '🏆 Winnings']]"
         :key="f[0]"
         class="chip border"
         :class="filter === f[0] ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500'"
         @click="filter = f[0]"
-      >{{ f[1] }}</button>
+      >
+        {{ f[1] }}<span v-if="f[0] === 'winnings' && wins.length" class="ml-1 font-bold">{{ wins.length }}</span>
+      </button>
     </div>
 
     <RouterLink
@@ -73,6 +82,10 @@ const needsChoice = computed(() => draws.value.filter((d) => d.awaiting_choice).
     </RouterLink>
 
     <div v-if="loading" class="card h-40 animate-pulse bg-slate-50" />
+    <div v-else-if="!rows.length && filter === 'winnings'" class="card p-10 text-center text-slate-500">
+      🏆 No wins yet — every pool you join is a 1 in 100 shot.
+      <RouterLink to="/shop?mode=draw" class="text-brand-700">Join a pool →</RouterLink>
+    </div>
     <div v-else-if="!rows.length" class="card p-10 text-center text-slate-500">
       Nothing here yet. <RouterLink to="/shop" class="text-brand-700">Shop now →</RouterLink>
     </div>

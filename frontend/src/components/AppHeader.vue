@@ -79,7 +79,9 @@ async function logout() {
           <button class="btn-ghost px-3 py-1.5 text-sm" @click="menuOpen = !menuOpen">
             {{ auth.isAuthed ? auth.user.name.split(' ')[0] : 'Account' }} ▾
           </button>
-          <div v-if="menuOpen" class="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-lg" @click="menuOpen = false">
+          <!-- z-50: the mobile search + PIN + category rows below are later
+               siblings, so without it they paint over this dropdown. -->
+          <div v-if="menuOpen" class="absolute right-0 z-50 mt-2 w-48 overflow-hidden rounded-xl border border-slate-100 bg-white py-1 shadow-lg" @click="menuOpen = false">
             <template v-if="!auth.isAuthed">
               <RouterLink to="/login" class="block px-4 py-2 hover:bg-slate-50">Sign in</RouterLink>
               <RouterLink to="/register" class="block px-4 py-2 hover:bg-slate-50">Create account</RouterLink>
