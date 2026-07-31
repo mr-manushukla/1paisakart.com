@@ -36,6 +36,9 @@ Route::get('/slides', [SlideController::class, 'index']); // homepage hero, admi
 Route::get('/winners', [WinnerController::class, 'index']); // public winner board
 Route::get('/products', [ProductController::class, 'index']);
 Route::get('/price-range', [ProductController::class, 'priceRange']); // bounds for the price filter
+// Pool price bands, for the horizontal range filter. New clubs appear here
+// automatically — the storefront never hardcodes the ranges.
+Route::get('/clubs', [ProductController::class, 'clubs']);
 Route::get('/products/{product:slug}', [ProductController::class, 'show']);
 Route::get('/products/{product:slug}/batch', [ProductController::class, 'batch']); // who's in the pool
 Route::get('/products/{product:slug}/related', [ProductController::class, 'related']); // cross-sell

@@ -72,11 +72,14 @@ class DrawService
                 throw new BusinessException('You have already booked this item in this pool. Choose a different product in the same price range to add another seat.');
             }
 
-            // Secondary guard: how many distinct items one customer may hold in a pool.
-            $max = (int) config('draw.max_entries_per_user', 10);
-            $held = $batch->entries()->where('user_id', $user->id)->count();
-            if ($held >= $max) {
-                throw new BusinessException("You can hold at most {$max} seats in one pool (you already have {$held}).");
+            // Optional ceiling on distinct items one customer may hold in a pool.
+            // 0 (the default) means uncapped — only pool availability limits them.
+            $max = (int) config('draw.max_entries_per_user', 0);
+            if ($max > 0) {
+                $held = $batch->entries()->where('user_id', $user->id)->count();
+                if ($held >= $max) {
+                    throw new BusinessException("You can hold at most {$max} seats in one pool (you already have {$held}).");
+                }
             }
 
             $entry = $batch->entries()->create([

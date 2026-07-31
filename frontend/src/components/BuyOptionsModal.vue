@@ -79,7 +79,7 @@ watch(product, async (p) => { if (p) { await new Promise((r) => setTimeout(r)); 
         <!-- 1% advance -->
         <button
           v-if="canDraw"
-          class="flex w-full items-center justify-between rounded-xl border-2 border-accent-500/50 bg-accent-500/5 px-4 py-3 text-left transition hover:bg-accent-500/10"
+          class="shine flex w-full items-center justify-between rounded-xl border-2 border-accent-500/50 bg-accent-500/5 px-4 py-3 text-left transition hover:bg-accent-500/10"
           @click="addDraw"
         >
           <span>

@@ -148,7 +148,7 @@ function joinDraw() {
               <p class="mt-1 text-center text-[11px] text-slate-500">Own it today — pay the full price</p>
             </div>
             <div v-if="product.draw_eligible">
-              <button class="btn-accent w-full" :disabled="product.already_booked" @click="joinDraw">
+              <button class="btn-accent w-full" :class="{ shine: !product.already_booked }" :disabled="product.already_booked" @click="joinDraw">
                 <template v-if="product.already_booked">Already booked in this pool</template>
                 <template v-else>Buy with 1% Advance · {{ money(product.entry_price) }}</template>
               </button>
@@ -248,6 +248,7 @@ function joinDraw() {
         <button
           v-if="product.draw_eligible"
           class="flex flex-1 flex-col items-center justify-center rounded-xl border border-accent-500 bg-white px-2 py-1.5 text-accent-700 disabled:opacity-50"
+          :class="{ shine: !product.already_booked }"
           :disabled="product.already_booked"
           @click="joinDraw"
         >

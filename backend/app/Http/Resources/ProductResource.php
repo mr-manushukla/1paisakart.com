@@ -35,7 +35,7 @@ class ProductResource extends JsonResource
             // in the current open pool — the UI hides the 1% option, and the payment
             // boundary refuses it too (one seat per product per pool).
             'already_booked' => in_array($this->id, $this->bookedProductIds($request), true),
-            'max_seats_per_user' => (int) config('draw.max_entries_per_user', 10),
+            'max_seats_per_user' => (int) config('draw.max_entries_per_user', 0), // 0 = uncapped
             'max_wallet_applicable' => $this->maxWalletApplicable(),
             // Delivery: an empty list means Pan India (see ProductServiceArea).
             'service_areas' => $this->whenLoaded('serviceAreas', fn () => $this->serviceAreas->pluck('prefix')->values()),

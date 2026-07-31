@@ -127,7 +127,22 @@ class MultiSeatDrawTest extends TestCase
         }
     }
 
-    public function test_per_user_seat_cap_is_enforced(): void
+    /** P7: uncapped by default — only pool availability limits a customer. */
+    public function test_by_default_a_customer_may_hold_any_number_of_seats(): void
+    {
+        config(['draw.max_entries_per_user' => 0]);
+        $draw = app(DrawService::class);
+        $user = User::factory()->create(['role' => 'customer']);
+
+        // 25 distinct items in the same band — far past the old ceiling of 10
+        foreach (range(0, 24) as $i) {
+            $draw->enter($this->product(20000 - $i * 100), $user);
+        }
+
+        $this->assertSame(25, $user->drawEntries()->count());
+    }
+
+    public function test_per_user_seat_cap_is_enforced_when_configured(): void
     {
         config(['draw.max_entries_per_user' => 3]);
         $draw = app(DrawService::class);

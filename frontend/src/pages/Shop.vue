@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import api from '../lib/api'
 import ProductCard from '../components/ProductCard.vue'
 import PriceRangeFilter from '../components/PriceRangeFilter.vue'
+import PoolRangeBar from '../components/PoolRangeBar.vue'
 import { useDeliveryStore } from '../stores/delivery'
 
 const route = useRoute()
@@ -58,6 +59,18 @@ async function load() {
   }
 }
 
+// On mobile the filter panel is collapsed so products own the screen.
+const filtersOpen = ref(false)
+const activeFilterCount = computed(() =>
+  ['mode', 'category', 'min_price', 'max_price'].filter((k) => route.query[k]).length)
+
+/** Tapping a pool band just sets the price window the band covers. */
+function selectPool(club) {
+  setQuery(club
+    ? { min_price: club.min_price, max_price: club.max_price }
+    : { min_price: undefined, max_price: undefined })
+}
+
 function setQuery(patch) {
   router.push({ name: 'shop', query: { ...route.query, page: undefined, ...patch } })
 }
@@ -74,9 +87,25 @@ watch(() => delivery.pincode, async () => { await loadBounds(); load() })
 </script>
 
 <template>
+  <div>
+    <!-- Pool bands first: the primary way to browse, one tap, no panel.
+         Extra filters sit beside it rather than above the products. -->
+    <div class="mb-4 flex items-center gap-2">
+      <div class="min-w-0 flex-1">
+        <PoolRangeBar :min="route.query.min_price" :max="route.query.max_price" @select="selectPool" />
+      </div>
+      <button
+        class="btn-ghost shrink-0 px-3 py-1.5 text-sm md:hidden"
+        :class="{ 'border-brand-600 text-brand-700': filtersOpen || activeFilterCount }"
+        @click="filtersOpen = !filtersOpen"
+      >
+        Filters<span v-if="activeFilterCount" class="ml-1 font-bold">{{ activeFilterCount }}</span>
+      </button>
+    </div>
+
   <div class="grid gap-6 md:grid-cols-[220px_1fr]">
-    <!-- Filters -->
-    <aside class="space-y-6">
+    <!-- Filters: a sidebar on desktop, collapsed behind the button on mobile -->
+    <aside class="space-y-6" :class="filtersOpen ? '' : 'hidden md:block'">
       <div class="card p-4">
         <h3 class="mb-3 font-semibold">Buying mode</h3>
         <div class="flex flex-col gap-1 text-sm">
@@ -124,5 +153,6 @@ watch(() => delivery.pincode, async () => { await loadBounds(); load() })
         <button class="btn-ghost" :disabled="meta.current_page >= meta.last_page" @click="setQuery({ page: meta.current_page + 1 })">Next</button>
       </div>
     </section>
+  </div>
   </div>
 </template>

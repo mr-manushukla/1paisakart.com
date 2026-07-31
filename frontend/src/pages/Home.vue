@@ -1,13 +1,20 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import api from '../lib/api'
 import HeroSlider from '../components/HeroSlider.vue'
 import CategoryTiles from '../components/CategoryTiles.vue'
 import ProductCard from '../components/ProductCard.vue'
+import PoolRangeBar from '../components/PoolRangeBar.vue'
 import { useDeliveryStore } from '../stores/delivery'
 
+const router = useRouter()
 const delivery = useDeliveryStore()
+
+/** Tapping a band on the home page opens the shop already filtered to it. */
+function goToPool(club) {
+  router.push({ name: 'shop', query: club ? { min_price: club.min_price, max_price: club.max_price } : {} })
+}
 const products = ref([])
 const loading = ref(true)
 
@@ -40,12 +47,10 @@ const testimonials = [
   <div class="space-y-14">
     <HeroSlider />
 
-    <!-- Trust bar -->
-    <section class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🚚</span> Fast delivery</div>
-      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">👛</span> 1% Wallet refunds</div>
-      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">⚖️</span> Provably fair draw</div>
-      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🔒</span> Secure checkout</div>
+    <!-- Shop straight into a pool band — products stay near the top -->
+    <section>
+      <h2 class="mb-3 font-display text-lg font-bold">Shop by pool</h2>
+      <PoolRangeBar @select="goToPool" />
     </section>
 
     <CategoryTiles />
@@ -137,6 +142,15 @@ const testimonials = [
         <input class="input flex-1 border-0 text-slate-800" placeholder="you@email.com" />
         <button class="btn-accent">Subscribe</button>
       </form>
+    </section>
+
+    <!-- Trust bar: kept at the bottom, just above the footer, so products own
+         the top of the page. -->
+    <section class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🚚</span> Fast delivery</div>
+      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">👛</span> 1% Wallet refunds</div>
+      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">⚖️</span> Provably fair draw</div>
+      <div class="card flex items-center gap-2 p-3 text-sm"><span class="text-xl">🔒</span> Secure checkout</div>
     </section>
   </div>
 </template>

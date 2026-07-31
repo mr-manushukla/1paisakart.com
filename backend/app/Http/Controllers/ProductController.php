@@ -38,6 +38,35 @@ class ProductController extends Controller
         return ProductResource::collection($products);
     }
 
+    /**
+     * Pool price bands for the horizontal range filter, each with how many
+     * products it currently holds. A band added in the admin shows up here on
+     * its own — the storefront never hardcodes ranges.
+     *
+     * Prices are fetched once and bucketed in PHP: there are ~100 bands, so a
+     * count query per band would be a needless N+1.
+     */
+    public function clubs(Request $request): array
+    {
+        $effective = 'COALESCE(NULLIF(sale_price,0), listed_price)';
+
+        $prices = Product::query()
+            ->where('status', 'active')
+            ->serviceableIn($request->input('pincode'))
+            ->selectRaw("$effective as price")
+            ->pluck('price');
+
+        $clubs = Club::orderBy('min_price')->get(['id', 'label', 'min_price', 'max_price']);
+
+        return ['data' => $clubs->map(fn ($c) => [
+            'id' => $c->id,
+            'label' => $c->label,
+            'min_price' => $c->min_price,
+            'max_price' => $c->max_price,
+            'products_count' => $prices->filter(fn ($p) => $p >= $c->min_price && $p <= $c->max_price)->count(),
+        ])->values()->all()];
+    }
+
     /** Bounds for the price-range filter, in paise. Respects the PIN filter. */
     public function priceRange(Request $request): array
     {

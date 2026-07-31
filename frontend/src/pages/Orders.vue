@@ -3,10 +3,15 @@ import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '../lib/api'
 import { money } from '../lib/money'
+import { useAuthStore } from '../stores/auth'
+import { toast, apiError } from '../lib/toast'
+import { payAndFulfil } from '../lib/razorpay'
 
+const auth = useAuthStore()
 const orders = ref([])
 const draws = ref([])
 const loading = ref(true)
+const busy = ref(null)      // entry id whose choice is being processed
 const filter = ref('all')   // all | purchases | draws | winnings
 
 const statusChip = {
@@ -24,15 +29,37 @@ const drawChip = {
   refunded: ['Refunded', 'bg-slate-100 text-slate-600'],
 }
 
+async function load() {
+  const [o, d] = await Promise.all([api.get('/orders'), api.get('/my-draws')])
+  orders.value = o.data.data
+  draws.value = d.data.data
+}
 onMounted(async () => {
-  try {
-    const [o, d] = await Promise.all([api.get('/orders'), api.get('/my-draws')])
-    orders.value = o.data.data
-    draws.value = d.data.data
-  } finally {
-    loading.value = false
-  }
+  try { await load() } finally { loading.value = false }
 })
+
+// The two post-draw options, actionable right here instead of bouncing the
+// customer to My Draws. Same calls that page makes.
+async function payBalance(entry) {
+  busy.value = entry.id
+  try {
+    const result = await payAndFulfil({ intent: 'balance', entry_id: entry.id, apply_wallet: true })
+    if (!result) return toast('Payment cancelled', 'error')
+    toast('Payment successful — the product is yours 🎉')
+    await Promise.all([load(), auth.refresh()])
+  } catch (e) {
+    toast(apiError(e, e?.message || 'Payment failed'), 'error')
+  } finally { busy.value = null }
+}
+
+async function moveToWallet(entry) {
+  busy.value = entry.id
+  try {
+    const { data } = await api.post(`/draw-entries/${entry.id}/credit`)
+    toast(data.message)
+    await Promise.all([load(), auth.refresh()])
+  } catch (e) { toast(apiError(e), 'error') } finally { busy.value = null }
+}
 
 /** Pools this customer actually won — the draw entry carries product + pool. */
 const wins = computed(() => draws.value.filter((d) => d.status === 'won'))
@@ -122,17 +149,45 @@ const needsChoice = computed(() => draws.value.filter((d) => d.awaiting_choice).
             </div>
             <span class="text-sm font-semibold">{{ money(row.data.advance) }}</span>
           </div>
-          <p class="mt-1 text-sm text-slate-600">{{ row.data.product?.name }}</p>
+          <div class="mt-1 flex flex-wrap items-baseline justify-between gap-x-3">
+            <p class="text-sm text-slate-600">{{ row.data.product?.name }}</p>
+            <!-- The product's own price, not just the pool it sits in. -->
+            <p v-if="row.data.product?.listed_price" class="text-sm">
+              <span class="text-slate-400">Product price</span>
+              <span class="ml-1 font-semibold text-slate-700">{{ money(row.data.product.listed_price) }}</span>
+            </p>
+          </div>
           <p class="text-xs text-slate-500">
             {{ row.data.pool?.club }} · pool #{{ row.data.pool?.batch_no }} · {{ row.data.pool?.filled }}/{{ row.data.pool?.size }} seats
           </p>
-          <div class="mt-2 flex items-center justify-between border-t border-slate-100 pt-2">
-            <span class="text-xs text-slate-500">
-              <template v-if="row.data.status === 'active'">Draw happens when the pool fills.</template>
-              <template v-else-if="row.data.awaiting_choice">Pay {{ money(row.data.balance_due) }} to buy it, or keep the credit.</template>
-              <template v-else-if="row.data.status === 'won'">Your {{ money(row.data.advance) }} covered it.</template>
-            </span>
-            <RouterLink v-if="row.data.awaiting_choice" to="/my-draws" class="btn-primary px-3 py-1.5 text-xs">Choose</RouterLink>
+
+          <!-- Non-winner: both options, side by side and equally weighted -->
+          <div v-if="row.data.awaiting_choice" class="mt-3 border-t border-slate-100 pt-3">
+            <div class="grid gap-2 sm:grid-cols-2">
+              <button
+                class="flex h-full flex-col items-start rounded-xl border-2 border-brand-600 bg-brand-50/50 px-3 py-2 text-left transition hover:bg-brand-50 disabled:opacity-50"
+                :disabled="busy === row.data.id"
+                @click="payBalance(row.data)"
+              >
+                <span class="text-sm font-semibold text-brand-800">Buy Now @ product cost (99%)</span>
+                <span class="text-xs text-slate-500">(After deduction of 1% Advance)</span>
+                <span class="mt-1 text-sm font-bold text-brand-700">{{ money(row.data.balance_due) }}</span>
+              </button>
+              <button
+                class="flex h-full flex-col items-start rounded-xl border-2 border-accent-500/50 bg-accent-500/5 px-3 py-2 text-left transition hover:bg-accent-500/10 disabled:opacity-50"
+                :disabled="busy === row.data.id"
+                @click="moveToWallet(row.data)"
+              >
+                <span class="text-sm font-semibold text-accent-700">Move 1% Advance into 1% Wallet</span>
+                <span class="text-xs text-slate-500">Buy any product at any time.</span>
+                <span class="mt-1 text-sm font-bold text-accent-700">{{ money(row.data.advance) }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-else class="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">
+            <template v-if="row.data.status === 'active'">Draw happens when the pool fills.</template>
+            <template v-else-if="row.data.status === 'won'">Your {{ money(row.data.advance) }} covered it.</template>
           </div>
         </template>
       </div>
