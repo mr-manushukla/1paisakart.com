@@ -50,6 +50,22 @@ function checkout() {
           </div>
         </div>
 
+        <!-- 99% balances queued from My Draws, settled together at checkout -->
+        <div v-if="cart.balanceItems.length">
+          <h2 class="mb-2 text-sm font-semibold text-brand-800">Completing your 1% bookings</h2>
+          <div class="space-y-3">
+            <div v-for="i in cart.balanceItems" :key="i.key" class="flex items-center gap-4 rounded-2xl border-2 border-brand-600/30 bg-brand-50/40 p-3">
+              <div class="h-20 w-20 flex-none"><ProductImage :src="i.image" :name="i.name" /></div>
+              <div class="flex-1">
+                <RouterLink :to="{ name: 'product', params: { slug: i.slug } }" class="font-semibold hover:text-brand-700">{{ i.name }}</RouterLink>
+                <p class="text-xs text-slate-500">Remaining after your 1% advance</p>
+              </div>
+              <p class="w-24 text-right font-semibold text-brand-700">{{ money(i.balance_due) }}</p>
+              <button class="text-rose-500 hover:text-rose-700" @click="cart.remove(i.key)">✕</button>
+            </div>
+          </div>
+        </div>
+
         <!-- 1% advance bookings, saved so they can be completed later -->
         <div v-if="cart.drawItems.length">
           <h2 class="mb-2 text-sm font-semibold text-accent-700">1% advance bookings</h2>
@@ -84,8 +100,11 @@ function checkout() {
         </div>
         -->
 
+        <div v-if="cart.balanceItems.length" class="mt-1 flex justify-between text-sm">
+          <span class="text-slate-500">Booking balances</span><span class="text-brand-700">{{ money(cart.balanceTotal) }}</span>
+        </div>
         <div class="mt-3 flex justify-between border-t border-slate-100 pt-2 font-bold">
-          <span>Total</span><span>{{ money(cart.subtotal + cart.drawTotal) }}</span>
+          <span>Total</span><span>{{ money(cart.subtotal + cart.drawTotal + cart.balanceTotal) }}</span>
         </div>
         <button class="btn-primary mt-4 w-full" @click="checkout">Checkout</button>
         <RouterLink to="/shop" class="mt-2 block text-center text-sm text-slate-500 hover:text-brand-700">Continue shopping</RouterLink>

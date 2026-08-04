@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { money } from '../lib/money'
+import { poolPct, poolRevealed, poolUrgency } from '../lib/pool'
 
 const props = defineProps({
   filled: { type: Number, default: 0 },
@@ -9,20 +10,12 @@ const props = defineProps({
   compact: Boolean,
 })
 
-/**
- * Fill progress stays hidden until the pool is half full: an almost-empty bar
- * reads as "nobody's here" and puts people off. Past the threshold it becomes
- * the opposite signal — social proof — so we show it with an urgency line.
- */
-const REVEAL_AT_PCT = 50
-
-const pct = computed(() => Math.min(100, Math.round((props.filled / props.size) * 100)))
+// Threshold and copy live in lib/pool.js — shared with the seat map so the two
+// can never disagree about whether a pool's fill level is public.
+const pct = computed(() => poolPct(props.filled, props.size))
 const remaining = computed(() => Math.max(0, props.size - props.filled))
-const show = computed(() => pct.value >= REVEAL_AT_PCT)
-const urgency = computed(() =>
-  pct.value >= 90 ? 'Almost gone — only a few seats left!'
-    : pct.value >= 75 ? 'Filling fast — the draw happens the moment it’s full.'
-      : 'Hurry! The pool is filling up fast.')
+const show = computed(() => poolRevealed(props.filled, props.size))
+const urgency = computed(() => poolUrgency(props.filled, props.size))
 </script>
 
 <template>

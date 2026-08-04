@@ -7,7 +7,6 @@ import ProductImage from '../components/ProductImage.vue'
 
 const pools = ref([])
 const loading = ref(true)
-const open = ref(null) // which participant seat is expanded (per pool: `${poolId}:${seat}`)
 
 onMounted(async () => {
   try {
@@ -18,7 +17,6 @@ onMounted(async () => {
 })
 
 const drawnOn = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-const toggle = (k) => { open.value = open.value === k ? null : k }
 </script>
 
 <template>
@@ -73,36 +71,12 @@ const toggle = (k) => { open.value = open.value === k ? null : k }
           </div>
         </div>
 
-        <!-- Participants: winner highlighted among the rest -->
-        <div class="px-5 pb-5 pt-4">
-          <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">All {{ p.participants.length }} participants</p>
-          <div class="grid grid-cols-6 gap-1.5 sm:grid-cols-10">
-            <button
-              v-for="s in p.participants"
-              :key="s.seat"
-              type="button"
-              class="flex aspect-square flex-col items-center justify-center rounded-lg text-[10px] font-semibold transition"
-              :class="s.is_winner
-                ? 'bg-accent-500 text-white ring-2 ring-accent-500/40'
-                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'"
-              :title="`Seat ${s.seat} · ${s.name} · ${s.product}`"
-              @click="toggle(`${p.id}:${s.seat}`)"
-            >
-              <span v-if="s.is_winner" class="text-sm leading-none">👑</span>
-              <span v-else>{{ s.seat }}</span>
-            </button>
-          </div>
-
-          <!-- Tapped seat detail (works on touch, where title never fires) -->
-          <p
-            v-for="s in p.participants.filter((x) => open === `${p.id}:${x.seat}`)"
-            :key="'d' + s.seat"
-            class="mt-3 rounded-lg px-3 py-2 text-sm"
-            :class="s.is_winner ? 'bg-accent-500/10 text-accent-700' : 'bg-slate-50 text-slate-600'"
-          >
-            <span class="font-semibold">Seat {{ s.seat }}{{ s.is_winner ? ' · 🏆 Winner' : '' }}</span>
-            — {{ s.name }} booked <span class="font-medium">{{ s.product }}</span>
-          </p>
+        <!-- The full 1–100 seat grid used to live here. It made every card
+             enormous for no real gain, so only the winning seat is called out. -->
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pb-5 pt-3 text-sm text-slate-500">
+          <span>Winning seat <strong class="text-accent-700">#{{ p.winner?.seat }}</strong> of {{ p.participants.length }}</span>
+          <span class="text-slate-300">·</span>
+          <span>{{ p.participants.length }} players, one winner</span>
         </div>
       </article>
     </div>

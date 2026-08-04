@@ -58,10 +58,12 @@ h1, h2, h3, .font-display { font-family: var(--font-display); }
     top: 0;
     bottom: 0;
     left: -60%;
-    width: 45%;
+    width: 60%;
     transform: skewX(-20deg);
-    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
-    animation: shine-sweep 2.6s ease-in-out infinite;
+    /* Bright and wide enough to actually catch the eye — a subtle sweep reads
+       as a rendering artefact rather than a deliberate highlight. */
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.9), transparent);
+    animation: shine-sweep 2.2s ease-in-out infinite;
     pointer-events: none;
   }
 }

@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import { useCartStore } from '../stores/cart'
 import { toast } from '../lib/toast'
 import { openBuyOptions } from '../lib/buyOptions'
+import { poolRevealed } from '../lib/pool'
 import ImageGallery from '../components/ImageGallery.vue'
 import DrawProgress from '../components/DrawProgress.vue'
 import PoolSeatMap from '../components/PoolSeatMap.vue'
@@ -31,6 +32,9 @@ let poll
 
 const slug = route.params.slug
 const hasOpenPool = computed(() => batch.value && batch.value.open !== false)
+// The fill level only becomes public once the pool is far enough along; the
+// seat map is the most explicit view of it, so it waits for the same gate.
+const poolIsPublic = computed(() => hasOpenPool.value && poolRevealed(batch.value.filled, batch.value.size))
 const bothOptions = computed(() => !!(product.value?.allow_full_buy && product.value?.draw_eligible))
 
 async function fetchProduct() {
@@ -192,8 +196,10 @@ function joinDraw() {
     <!-- Description + product information -->
     <ProductSpecs :description="product.description" :brand="product.brand" :specs="product.specs" />
 
-    <!-- Transparency: who's in the pool -->
-    <section v-if="product.draw_eligible && hasOpenPool" class="card p-6">
+    <!-- Transparency: who's in the pool. Hidden until the pool passes the reveal
+         threshold — the seat grid and booked/available counts are fill progress,
+         so showing them early would defeat the gate on the progress bar. -->
+    <section v-if="product.draw_eligible && hasOpenPool && poolIsPublic" class="card p-6">
       <div class="mb-4 flex items-center justify-between">
         <div>
           <h2 class="font-display text-xl font-bold">Who's in the pool <span class="text-slate-400">· {{ batch.club?.label }} · pool #{{ batch.batch_no }}</span></h2>

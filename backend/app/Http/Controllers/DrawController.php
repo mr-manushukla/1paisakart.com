@@ -31,13 +31,25 @@ class DrawController extends Controller
     }
 
     /** The signed-in customer's own bookings, newest first, with a participation summary. */
+    /**
+     * The customer's bookings, newest first.
+     *
+     * ?status=won (or any entry status) narrows the list. Without it the results
+     * are paged, so a heavy booker's wins can sit pages deep — the Winnings tab
+     * asks for status=won so it never depends on where a win happens to land.
+     */
     public function myDraws(Request $request)
     {
         $user = $request->user();
+        $status = $request->string('status')->toString();
 
-        return DrawEntryResource::collection(
-            $user->drawEntries()->with(['product', 'batch.club'])->latest('id')->paginate(20)
-        )->additional(['summary' => $user->drawSummary()]);
+        $query = $user->drawEntries()->with(['product', 'batch.club'])->latest('id');
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        return DrawEntryResource::collection($query->paginate($status !== '' ? 100 : 20))
+            ->additional(['summary' => $user->drawSummary()]);
     }
 
     /** Option A — pay the remaining 99% and take the booked product. */

@@ -192,6 +192,65 @@ class RazorpayPaymentTest extends TestCase
         ]);
     }
 
+    /**
+     * P5: several 99% balances settled in ONE payment, instead of paying each
+     * booking separately.
+     */
+    public function test_multiple_booking_balances_settle_in_a_single_checkout(): void
+    {
+        config(['draw.batch_size' => 2]);
+        $draw = app(\App\Services\DrawService::class);
+        $user = User::factory()->create(['role' => 'customer']);
+        $other = User::factory()->create(['role' => 'customer']);
+
+        // Two products in one band; fill the pool so it draws and someone loses.
+        $a = $this->product(20000);
+        $b = $this->product(20000);
+        $draw->enter($a, $user);
+        $draw->enter($a, $other);   // 2nd seat closes the pool and settles it
+
+        $losers = $user->drawEntries()->where('status', 'lost_pending')->get()
+            ->merge($other->drawEntries()->where('status', 'lost_pending')->get());
+        $this->assertNotEmpty($losers, 'expected a non-winner to settle');
+        $loser = $losers->first();
+        $payer = $loser->user;
+
+        $payment = $this->pendingPayment($payer, 'checkout', [
+            'items' => [], 'draw_items' => [], 'balance_items' => [$loser->id], 'apply_wallet' => false,
+        ], $loser->balanceDue());
+
+        $this->actingAs($payer)->postJson('/api/payments/verify', [
+            'razorpay_order_id' => $payment->rzp_order_id,
+            'razorpay_payment_id' => 'pay_bal',
+            'razorpay_signature' => $this->sign($payment->rzp_order_id, 'pay_bal'),
+        ])->assertOk();
+
+        $this->assertSame('converted', $loser->fresh()->status);
+        $this->assertSame(1, $payer->orders()->count());
+    }
+
+    public function test_you_cannot_settle_someone_elses_booking_balance(): void
+    {
+        config(['draw.batch_size' => 2]);
+        $draw = app(\App\Services\DrawService::class);
+        $owner = User::factory()->create(['role' => 'customer']);
+        $attacker = User::factory()->create(['role' => 'customer']);
+        $p = $this->product(20000);
+        $draw->enter($p, $owner);
+        $draw->enter($p, $attacker);
+
+        $victim = $owner->drawEntries()->where('status', 'lost_pending')->first()
+            ?? $attacker->drawEntries()->where('status', 'lost_pending')->first();
+        $thief = $victim->user_id === $owner->id ? $attacker : $owner;
+
+        // Pricing the intent must refuse a booking that isn't the payer's (403).
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
+        $this->expectExceptionMessage('Not your booking.');
+        app(\App\Services\RazorpayService::class)->createOrder($thief, [
+            'intent' => 'checkout', 'items' => [], 'balance_items' => [$victim->id],
+        ]);
+    }
+
     public function test_an_unbookable_seat_is_returned_to_the_wallet_not_lost(): void
     {
         $user = User::factory()->create(['role' => 'customer']);

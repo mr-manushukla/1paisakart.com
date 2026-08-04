@@ -31,7 +31,9 @@ const afterDiscount = computed(() => Math.max(0, cart.subtotal - discount.value)
 const walletCovers = computed(() =>
   cart.buyItems.length ? Math.min(auth.walletBalance, cart.walletCap, afterDiscount.value) : 0)
 const walletApplied = computed(() => (applyWallet.value ? walletCovers.value : 0))
-const payable = computed(() => afterDiscount.value - walletApplied.value + cart.drawTotal)
+// Balances are already net of the 1% advance, and wallet stays reserved for the
+// purchase lines — so they add on at face value.
+const payable = computed(() => afterDiscount.value - walletApplied.value + cart.drawTotal + cart.balanceTotal)
 
 async function applyCoupon() {
   if (!couponCode.value.trim()) return
@@ -60,9 +62,10 @@ async function placeOrder() {
   try {
     const items = cart.buyItems.map((i) => ({ product_id: i.product_id, qty: i.qty }))
     const drawItems = cart.drawItems.map((i) => i.product_id)
+    const balanceItems = cart.balanceItems.map((i) => i.entry_id)
 
     // Wallet covered the whole purchase and there's nothing to book → no gateway needed.
-    if (payable.value <= 0 && !drawItems.length) {
+    if (payable.value <= 0 && !drawItems.length && !balanceItems.length) {
       const { data } = await api.post('/checkout', { items, apply_wallet: applyWallet.value, coupon_code: coupon.value?.code ?? null, address_id: addressId.value })
       cart.clear()
       await auth.refresh()
@@ -74,6 +77,7 @@ async function placeOrder() {
       intent: 'checkout',
       items,
       draw_items: drawItems,
+      balance_items: balanceItems,
       apply_wallet: applyWallet.value,
       coupon_code: coupon.value?.code ?? null,
       address_id: addressId.value,
@@ -122,6 +126,18 @@ async function placeOrder() {
           </div>
         </div>
 
+        <!-- 99% balances being settled together -->
+        <div v-if="cart.balanceItems.length" class="rounded-2xl border-2 border-brand-600/30 bg-brand-50/40 p-2">
+          <p class="px-3 pt-2 text-sm font-semibold text-brand-800">Completing your 1% bookings</p>
+          <div v-for="i in cart.balanceItems" :key="i.key" class="flex items-center justify-between px-3 py-2.5 last:pb-3">
+            <span class="text-sm">
+              {{ i.name }}
+              <span class="block text-xs text-slate-500">Remaining after your 1% advance</span>
+            </span>
+            <span class="font-medium">{{ money(i.balance_due) }}</span>
+          </div>
+        </div>
+
         <div v-if="cart.drawItems.length" class="rounded-2xl border-2 border-accent-500/30 bg-accent-500/5 p-2">
           <p class="px-3 pt-2 text-sm font-semibold text-accent-700">1% advance bookings</p>
           <div v-for="i in cart.drawItems" :key="i.key" class="flex items-center justify-between px-3 py-2.5 last:pb-3">
@@ -162,6 +178,7 @@ async function placeOrder() {
           <div v-if="cart.buyItems.length" class="flex justify-between"><span class="text-slate-500">Purchases</span><span>{{ money(cart.subtotal) }}</span></div>
           <div v-if="discount" class="flex justify-between text-green-700"><span>Coupon {{ coupon.code }}</span><span>− {{ money(discount) }}</span></div>
           <div v-if="cart.drawItems.length" class="flex justify-between"><span class="text-slate-500">1% advances</span><span>{{ money(cart.drawTotal) }}</span></div>
+          <div v-if="cart.balanceItems.length" class="flex justify-between"><span class="text-slate-500">Booking balances</span><span>{{ money(cart.balanceTotal) }}</span></div>
           <div v-if="walletApplied" class="flex justify-between text-brand-700"><span>1% Wallet applied</span><span>− {{ money(walletApplied) }}</span></div>
           <div class="mt-2 flex justify-between border-t border-slate-100 pt-2 text-base font-bold"><span>Pay now</span><span>{{ money(payable) }}</span></div>
         </div>

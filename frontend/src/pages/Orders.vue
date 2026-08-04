@@ -6,7 +6,10 @@ import { money } from '../lib/money'
 import { useAuthStore } from '../stores/auth'
 import { toast, apiError } from '../lib/toast'
 import { payAndFulfil } from '../lib/razorpay'
+import DrawChoiceButtons from '../components/DrawChoiceButtons.vue'
+import { useCartStore } from '../stores/cart'
 
+const cart = useCartStore()
 const auth = useAuthStore()
 const orders = ref([])
 const draws = ref([])
@@ -30,9 +33,16 @@ const drawChip = {
 }
 
 async function load() {
-  const [o, d] = await Promise.all([api.get('/orders'), api.get('/my-draws')])
+  // Wins are fetched on their own: the main list is paged, and a heavy booker's
+  // win can sit several pages deep, which is why the Winnings tab looked empty.
+  const [o, d, w] = await Promise.all([
+    api.get('/orders'),
+    api.get('/my-draws'),
+    api.get('/my-draws', { params: { status: 'won' } }),
+  ])
   orders.value = o.data.data
   draws.value = d.data.data
+  wins.value = w.data.data
 }
 onMounted(async () => {
   try { await load() } finally { loading.value = false }
@@ -52,6 +62,12 @@ async function payBalance(entry) {
   } finally { busy.value = null }
 }
 
+/** Queue this booking's 99% balance so several can be paid in one checkout. */
+function addToCart(entry) {
+  cart.addBalance(entry)
+  toast(`${entry.product?.name ?? 'Booking'} added to cart — pay for several at once`)
+}
+
 async function moveToWallet(entry) {
   busy.value = entry.id
   try {
@@ -61,8 +77,8 @@ async function moveToWallet(entry) {
   } catch (e) { toast(apiError(e), 'error') } finally { busy.value = null }
 }
 
-/** Pools this customer actually won — the draw entry carries product + pool. */
-const wins = computed(() => draws.value.filter((d) => d.status === 'won'))
+/** Pools this customer actually won — fetched complete, never page-limited. */
+const wins = ref([])
 
 /** Purchases and 1% bookings in one timeline, newest first. */
 const rows = computed(() => {
@@ -163,26 +179,15 @@ const needsChoice = computed(() => draws.value.filter((d) => d.awaiting_choice).
 
           <!-- Non-winner: both options, side by side and equally weighted -->
           <div v-if="row.data.awaiting_choice" class="mt-3 border-t border-slate-100 pt-3">
-            <div class="grid gap-2 sm:grid-cols-2">
-              <button
-                class="flex h-full flex-col items-start rounded-xl border-2 border-brand-600 bg-brand-50/50 px-3 py-2 text-left transition hover:bg-brand-50 disabled:opacity-50"
-                :disabled="busy === row.data.id"
-                @click="payBalance(row.data)"
-              >
-                <span class="text-sm font-semibold text-brand-800">Buy Now @ product cost (99%)</span>
-                <span class="text-xs text-slate-500">(After deduction of 1% Advance)</span>
-                <span class="mt-1 text-sm font-bold text-brand-700">{{ money(row.data.balance_due) }}</span>
-              </button>
-              <button
-                class="flex h-full flex-col items-start rounded-xl border-2 border-accent-500/50 bg-accent-500/5 px-3 py-2 text-left transition hover:bg-accent-500/10 disabled:opacity-50"
-                :disabled="busy === row.data.id"
-                @click="moveToWallet(row.data)"
-              >
-                <span class="text-sm font-semibold text-accent-700">Move 1% Advance into 1% Wallet</span>
-                <span class="text-xs text-slate-500">Buy any product at any time.</span>
-                <span class="mt-1 text-sm font-bold text-accent-700">{{ money(row.data.advance) }}</span>
-              </button>
-            </div>
+            <DrawChoiceButtons
+              :entry="row.data"
+              :busy="busy === row.data.id"
+              :in-cart="cart.has('balance', row.data.id)"
+              allow-cart
+              @pay="payBalance(row.data)"
+              @wallet="moveToWallet(row.data)"
+              @cart="addToCart(row.data)"
+            />
           </div>
 
           <div v-else class="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500">

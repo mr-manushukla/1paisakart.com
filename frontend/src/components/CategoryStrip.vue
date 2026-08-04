@@ -2,10 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import api from '../lib/api'
+import { categoryIcon } from '../lib/categoryIcons'
 
 const route = useRoute()
 const cats = ref([])
-const icons = { 'Electronics': '📱', 'Fashion': '👕', 'Home & Kitchen': '🍳', 'Grocery': '🛒' }
 
 onMounted(async () => {
   try { cats.value = (await api.get('/categories')).data } catch { /* strip just stays empty */ }
@@ -34,7 +34,7 @@ const isActive = (slug) => route.name === 'shop' && route.query.category === slu
       class="flex min-w-16 flex-none flex-col items-center gap-0.5 border-b-2 px-2 pb-1.5 pt-1 text-[11px] font-medium transition"
       :class="isActive(c.slug) ? 'border-brand-600 text-brand-700' : 'border-transparent text-slate-500'"
     >
-      <span class="text-xl leading-none">{{ icons[c.name] || '🏷️' }}</span>
+      <span class="text-xl leading-none">{{ categoryIcon(c) }}</span>
       <span class="max-w-16 truncate">{{ c.name }}</span>
     </RouterLink>
   </nav>

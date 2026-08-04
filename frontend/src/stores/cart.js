@@ -9,24 +9,30 @@ const read = (k) => { try { return JSON.parse(localStorage.getItem(k)) ?? [] } c
 const write = (k, items) => localStorage.setItem(k, JSON.stringify(items))
 const load = () => read(activeKey)
 
-// A line is either a normal purchase ('buy') or a 1% advance booking ('draw').
-// The same product can sit in the cart as both, so lines are keyed by mode+id.
-const keyOf = (mode, productId) => `${mode}:${productId}`
+// A line is a normal purchase ('buy'), a 1% advance booking ('draw'), or the
+// remaining 99% on a booking that didn't win ('balance'). The same product can
+// sit in the cart under several modes, so lines are keyed by mode + id.
+// For 'balance' the id is the DRAW ENTRY id, not the product id — one entry is
+// one specific seat to settle.
+const keyOf = (mode, id) => `${mode}:${id}`
 
 export const useCartStore = defineStore('cart', {
   state: () => ({ items: load() }),
   getters: {
-    buyItems: (s) => s.items.filter((i) => i.mode !== 'draw'),
+    buyItems: (s) => s.items.filter((i) => i.mode === 'buy' || !i.mode),
     drawItems: (s) => s.items.filter((i) => i.mode === 'draw'),
-    count: (s) => s.items.reduce((n, i) => n + (i.mode === 'draw' ? 1 : i.qty), 0),
+    balanceItems: (s) => s.items.filter((i) => i.mode === 'balance'),
+    count: (s) => s.items.reduce((n, i) => n + (i.mode === 'buy' || !i.mode ? i.qty : 1), 0),
     /** Full-price portion only. */
-    subtotal: (s) => s.items.filter((i) => i.mode !== 'draw').reduce((n, i) => n + i.listed_price * i.qty, 0),
+    subtotal: (s) => s.items.filter((i) => i.mode === 'buy' || !i.mode).reduce((n, i) => n + i.listed_price * i.qty, 0),
     /** 1% advances — real money only, wallet can never pay these. */
     drawTotal: (s) => s.items.filter((i) => i.mode === 'draw').reduce((n, i) => n + (i.entry_price ?? 0), 0),
+    /** Remaining 99% on bookings being settled from the cart. */
+    balanceTotal: (s) => s.items.filter((i) => i.mode === 'balance').reduce((n, i) => n + (i.balance_due ?? 0), 0),
     /** Sum of per-item wallet caps across the purchase lines. */
-    walletCap: (s) => s.items.filter((i) => i.mode !== 'draw')
+    walletCap: (s) => s.items.filter((i) => i.mode === 'buy' || !i.mode)
       .reduce((n, i) => n + (i.max_wallet_applicable ?? 0) * i.qty, 0),
-    has: (s) => (mode, productId) => s.items.some((i) => i.key === keyOf(mode, productId)),
+    has: (s) => (mode, id) => s.items.some((i) => i.key === keyOf(mode, id)),
   },
   actions: {
     persist() { write(activeKey, this.items) },
@@ -84,6 +90,30 @@ export const useCartStore = defineStore('cart', {
           qty: mode === 'draw' ? 1 : qty,
         })
       }
+      this.persist()
+    },
+
+    /**
+     * Queue the remaining 99% on a booking that didn't win, so several can be
+     * settled in one checkout instead of paying entry by entry.
+     * @param {{id:number, balance_due:number, product?:object}} entry
+     */
+    addBalance(entry) {
+      const key = keyOf('balance', entry.id)
+      if (this.items.some((i) => i.key === key)) return
+
+      this.items.push({
+        key,
+        mode: 'balance',
+        entry_id: entry.id,
+        product_id: entry.product?.id ?? null,
+        slug: entry.product?.slug,
+        name: entry.product?.name,
+        image: entry.product?.image,
+        listed_price: entry.product?.listed_price,
+        balance_due: entry.balance_due,
+        qty: 1,
+      })
       this.persist()
     },
 

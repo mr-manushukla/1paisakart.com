@@ -21,6 +21,9 @@ class PaymentController extends Controller
             'items.*.qty' => ['required_with:items', 'integer', 'min:1'],
             'draw_items' => ['nullable', 'array'],
             'draw_items.*' => ['integer', 'exists:products,id'],
+            // 99% balances settled together from the cart
+            'balance_items' => ['nullable', 'array'],
+            'balance_items.*' => ['integer', 'exists:draw_entries,id'],
             // draw — always a single seat (one seat per product per pool)
             'product_slug' => ['required_if:intent,draw', 'string'],
             // balance

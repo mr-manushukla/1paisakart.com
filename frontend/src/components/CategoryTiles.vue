@@ -2,22 +2,13 @@
 import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import api from '../lib/api'
+import { categoryIcon } from '../lib/categoryIcons'
 
 const cats = ref([])
 const showAll = ref(false)
 
 // How many fit before "Show all" appears — two full rows on the widest grid.
 const INITIAL = 12
-
-// Icons come from the admin panel now. This map is only the fallback for
-// categories created before icons existed, so none renders as a bare tag.
-const FALLBACK = {
-  'Electronics': '📱', 'Fashion': '👕', 'Home & Kitchen': '🍳', 'Grocery': '🛒',
-  'Beauty': '💄', 'Sports': '⚽', 'Toys': '🧸', 'Books': '📚', 'Mobiles': '📱',
-  'Furniture': '🛋️', 'Appliances': '🔌', 'Footwear': '👟', 'Watches': '⌚',
-  'Bags': '🎒', 'Automotive': '🚗', 'Health': '💊', 'Jewellery': '💍',
-}
-const iconFor = (c) => c.icon || FALLBACK[c.name] || '🏷️'
 
 const visible = computed(() => (showAll.value ? cats.value : cats.value.slice(0, INITIAL)))
 
@@ -42,7 +33,7 @@ onMounted(async () => { cats.value = (await api.get('/categories')).data })
         :to="{ name: 'shop', query: { category: c.slug } }"
         class="card flex flex-col items-center gap-1.5 p-4 text-center transition hover:-translate-y-0.5 hover:shadow-md"
       >
-        <span class="text-3xl">{{ iconFor(c) }}</span>
+        <span class="text-3xl">{{ categoryIcon(c) }}</span>
         <span class="text-sm font-semibold leading-tight">{{ c.name }}</span>
         <span class="text-xs text-slate-400">{{ c.products_count }} items</span>
       </RouterLink>

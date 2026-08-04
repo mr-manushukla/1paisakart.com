@@ -7,8 +7,17 @@ import { useAuthStore } from '../stores/auth'
 import { toast, apiError } from '../lib/toast'
 import { payAndFulfil } from '../lib/razorpay'
 import ProductImage from '../components/ProductImage.vue'
+import DrawChoiceButtons from '../components/DrawChoiceButtons.vue'
+import { useCartStore } from '../stores/cart'
 
+const cart = useCartStore()
 const auth = useAuthStore()
+
+/** Queue this booking's 99% balance so several can be paid in one checkout. */
+function addToCart(e) {
+  cart.addBalance(e)
+  toast(`${e.product?.name ?? 'Booking'} added to cart — pay for several at once`)
+}
 const router = useRouter()
 const entries = ref([])
 const loading = ref(true)
@@ -109,20 +118,21 @@ async function moveToWallet(e) {
               The product is yours — your {{ money(e.advance) }} covered it. Government taxes on the prize value may apply.
             </p>
 
-            <!-- Non-winner: the two options -->
+            <!-- Non-winner: the two options, same as My Orders -->
             <div v-else-if="e.awaiting_choice" class="mt-3 rounded-xl bg-amber-50/70 p-3">
-              <p class="text-sm text-slate-700">
+              <p class="mb-3 text-sm text-slate-700">
                 You didn't win this pool. Your {{ money(e.advance) }} is safe — pick one by
                 <strong>{{ deadline(e.choice_deadline_at) }}</strong>, or we'll move it to your 1% Wallet automatically.
               </p>
-              <div class="mt-3 flex flex-wrap gap-2">
-                <button class="btn-primary" :disabled="busy === e.id" @click="payBalance(e)">
-                  Buy it — pay {{ money(e.balance_due) }}
-                </button>
-                <button class="btn-ghost" :disabled="busy === e.id" @click="moveToWallet(e)">
-                  Move {{ money(e.advance) }} to 1% Wallet
-                </button>
-              </div>
+              <DrawChoiceButtons
+                :entry="e"
+                :busy="busy === e.id"
+                :in-cart="cart.has('balance', e.id)"
+                allow-cart
+                @pay="payBalance(e)"
+                @wallet="moveToWallet(e)"
+                @cart="addToCart(e)"
+              />
             </div>
 
             <p v-else-if="e.status === 'converted'" class="mt-2 text-sm text-slate-500">You paid the balance — see your orders.</p>

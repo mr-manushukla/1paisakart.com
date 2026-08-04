@@ -137,8 +137,10 @@ class RazorpayService
             ->map(fn ($i) => ['product_id' => (int) $i['product_id'], 'qty' => max(1, (int) $i['qty'])])
             ->values()->all();
         $drawIds = collect($input['draw_items'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
+        // Non-winners settling the remaining 99% on several bookings at once.
+        $balanceIds = collect($input['balance_items'] ?? [])->map(fn ($id) => (int) $id)->unique()->values()->all();
 
-        if (! $lines && ! $drawIds) {
+        if (! $lines && ! $drawIds && ! $balanceIds) {
             throw new BusinessException('Cart is empty.');
         }
 
@@ -174,7 +176,20 @@ class RazorpayService
         }
         $drawIds = $bookable;
 
-        if (! $lines && ! $drawIds) {
+        // Each balance must be this customer's own booking and still awaiting a
+        // choice. Priced from the snapshot taken at booking time, so a later
+        // price change can't move the goalposts.
+        $balances = 0;
+        foreach ($balanceIds as $entryId) {
+            $entry = DrawEntry::with('product')->findOrFail($entryId);
+            abort_unless($entry->user_id === $user->id, 403, 'Not your booking.');
+            if (! $entry->awaitingChoice()) {
+                throw new BusinessException('One of those bookings is no longer awaiting a choice.');
+            }
+            $balances += $entry->balanceDue();
+        }
+
+        if (! $lines && ! $drawIds && ! $balanceIds) {
             throw new BusinessException('You have already booked these items in their pools — nothing left to pay.');
         }
 
@@ -187,10 +202,13 @@ class RazorpayService
         $wallet = $applyWallet ? min($user->fresh()->wallet_balance, $cap, $afterDiscount) : 0;
 
         return [
-            ($afterDiscount - $wallet) + $advances,   // advances are always real money
+            // Advances are always real money. Balances are already net of the 1%
+            // advance, and wallet credit stays reserved for the purchase lines.
+            ($afterDiscount - $wallet) + $advances + $balances,
             [
                 'items' => $lines,
                 'draw_items' => $drawIds,
+                'balance_items' => $balanceIds,
                 'apply_wallet' => $applyWallet,
                 'coupon_code' => $applied ? $applied['coupon']->code : null,
                 'address_id' => $input['address_id'] ?? null,
@@ -283,6 +301,25 @@ class RazorpayService
                 }
                 if ($refunded) {
                     $result['refunded_to_wallet'] = $refunded;
+                }
+
+                // Settle each 99% balance the customer chose to pay in this cart.
+                // Wallet is not reapplied here — it was already priced against the
+                // purchase lines, and the balance is net of the advance.
+                $converted = [];
+                foreach ($p['balance_items'] ?? [] as $entryId) {
+                    $entry = DrawEntry::find($entryId);
+                    if (! $entry || $entry->user_id !== $user->id || ! $entry->awaitingChoice()) {
+                        continue; // already settled or expired between pay and verify
+                    }
+                    $order = $this->draw->convertToPurchase($entry, false, $payment);
+                    $converted[] = $order->id;
+                    if (! $payment->order_id) {
+                        $payment->update(['order_id' => $order->id]);
+                    }
+                }
+                if ($converted) {
+                    $result['balance_orders'] = $converted;
                 }
 
                 return $result;

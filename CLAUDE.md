@@ -31,7 +31,11 @@ See `docs/BUSINESS_RULES.md` for the authoritative spec. Summary:
 
 ### Transparency
 - Every open club pool exposes a **public** endpoint: fill progress (X/100), odds, and the participant list
-  (masked names **+ the product each seat booked**). "Who is in the pool" is fully visible.
+  (masked names **+ the product each seat booked**). The API always serves this — never gate the endpoint.
+- **The storefront reveals it only once the pool is ≥60% full** (`frontend/src/lib/pool.js`). Below that the
+  progress bar *and* the "Who's in the pool" seat map are hidden, so a half-empty pool doesn't read as dead;
+  above it, both appear with an urgency line. A customer always sees the fill level of pools they've joined
+  (My Draws / My Orders), and admin/vendor dashboards are never gated.
 
 ## Coding rules
 - **KISS / DRY / SOLID**, ponytail-lazy: climb the ladder — reuse Laravel/Vue built-ins before writing code, one line before fifty, no speculative abstractions.
