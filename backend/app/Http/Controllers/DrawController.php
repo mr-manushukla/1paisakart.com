@@ -43,7 +43,7 @@ class DrawController extends Controller
         $user = $request->user();
         $status = $request->string('status')->toString();
 
-        $query = $user->drawEntries()->with(['product', 'batch.club'])->latest('id');
+        $query = $user->drawEntries()->with(['product', 'batch.club', 'batch.winnerEntry'])->latest('id');
         if ($status !== '') {
             $query->where('status', $status);
         }

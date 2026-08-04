@@ -171,22 +171,11 @@ class DrawService
                     continue;
                 }
 
-                // A winner takes exactly ONE item. Any other seats they hold are
-                // refunded to wallet straight away — no choice window for those.
-                if ($entry->user_id === $winner->user_id) {
-                    $this->wallet->credit(
-                        $entry->user,
-                        $entry->amount,
-                        'draw_refund',
-                        'draw_entry',
-                        $entry->id,
-                        'Extra seat refunded — you already won this pool',
-                    );
-                    $entry->update(['status' => 'credited']);
-
-                    continue;
-                }
-
+                // A winner still takes exactly ONE item for their 1%, but their
+                // OTHER seats are not force-refunded: they get the same choice as
+                // everyone else — buy at the 99% balance, or move the advance to
+                // the wallet. Deciding for them would take away a purchase they
+                // may well want to complete.
                 $entry->update(['status' => 'lost_pending', 'choice_deadline_at' => $deadline]);
             }
 

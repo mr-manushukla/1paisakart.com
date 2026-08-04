@@ -121,8 +121,13 @@ async function moveToWallet(e) {
             <!-- Non-winner: the two options, same as My Orders -->
             <div v-else-if="e.awaiting_choice" class="mt-3 rounded-xl bg-amber-50/70 p-3">
               <p class="mb-3 text-sm text-slate-700">
-                You didn't win this pool. Your {{ money(e.advance) }} is safe — pick one by
-                <strong>{{ deadline(e.choice_deadline_at) }}</strong>, or we'll move it to your 1% Wallet automatically.
+                <template v-if="e.won_other_in_pool">
+                  🎉 You won a different item in this pool. This seat is still yours to decide on —
+                </template>
+                <template v-else>
+                  You didn't win this pool. Your {{ money(e.advance) }} is safe —
+                </template>
+                pick one by <strong>{{ deadline(e.choice_deadline_at) }}</strong>, or we'll move it to your 1% Wallet automatically.
               </p>
               <DrawChoiceButtons
                 :entry="e"

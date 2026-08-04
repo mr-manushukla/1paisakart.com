@@ -17,6 +17,12 @@ class DrawEntryResource extends JsonResource
             'balance_due' => $this->product ? $this->balanceDue() : null,
             'choice_deadline_at' => $this->choice_deadline_at,
             'awaiting_choice' => $this->awaitingChoice(),
+            // True when this customer won this pool with a DIFFERENT seat. Their
+            // other seats still need a decision, but telling them "you didn't win"
+            // would be plainly wrong.
+            'won_other_in_pool' => $this->whenLoaded('batch', fn () => $this->batch?->winnerEntry !== null
+                && $this->batch->winnerEntry->user_id === $this->user_id
+                && $this->batch->winner_entry_id !== $this->id),
             'order_id' => $this->order_id,
             'created_at' => $this->created_at,
             'product' => $this->whenLoaded('product', fn () => [

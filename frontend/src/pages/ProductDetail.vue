@@ -177,7 +177,8 @@ function joinDraw() {
 
             <p class="mt-2 rounded-lg bg-white/60 px-2.5 py-2 text-[11px] text-slate-500">
               One seat per item. To take more seats in this pool, book a <strong>different</strong> product
-              in the same price range — you can still win only one item, and any extra seats refund to your 1% Wallet.
+              in the same price range — you can still win only one item, and every other seat is yours to decide on:
+              buy it at the remaining 99%, or move that 1% to your 1% Wallet.
             </p>
             <div v-if="hasOpenPool" class="mt-2">
               <DrawProgress :filled="batch.filled" :size="batch.size" :entry-price="product.entry_price" />

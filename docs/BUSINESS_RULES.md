@@ -25,10 +25,12 @@ up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolv
 - Booking one product = **one seat**. A customer may hold **several seats in the same pool**, but each
   must be a **different product** in that price band — the **same item can never be booked twice** by the
   same customer in the same pool (enforced by a unique index on `batch_id + user_id + product_id`).
-- `max_entries_per_user` caps how many distinct items one customer may hold in a pool, so no single
-  buyer can corner a pool and have most of it refunded.
-- A winner receives **exactly one item**. Any other seats that winner holds are credited **straight to
-  their wallet** (no choice window); other participants get the normal choice below.
+- `max_entries_per_user` caps how many distinct items one customer may hold in a pool. It defaults to
+  **0 = uncapped** (only pool availability limits a buyer); set a number to reinstate a ceiling.
+- A winner receives **exactly one item** (the product their winning seat booked). Any **other** seats
+  that winner holds are **not** auto-refunded — they get the **same choice** as every other participant
+  (buy at the remaining 99%, or move the 1% to wallet). Winning one item never cancels the buyer's
+  other intended purchases.
 
 ### Flow
 1. **Secure your entry** — customer pays a **1% advance** (`floor(listed_price / 100)`) to book a seat.
@@ -67,8 +69,8 @@ up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolv
 
 ## 7. Invariants (enforced + tested)
 - `sum(wallet_transactions.amount for user) == users.wallet_balance` always.
-- A drawn pool has exactly **1** `won` entry; other participants are `lost_pending` (never auto-credited
-  at draw time), while any additional seats held by the winner are `credited`.
+- A drawn pool has exactly **1** `won` entry; **every** other seat — including the winner's own extra
+  seats — is `lost_pending` with a choice deadline. Nothing is auto-credited at draw time.
 - No customer holds two seats for the same product in one pool.
 - The winner's order is for **the product that entry booked**, with `payable == advance`.
 - No booking advance is ever paid from wallet credit.

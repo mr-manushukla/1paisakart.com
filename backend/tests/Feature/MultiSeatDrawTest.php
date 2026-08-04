@@ -115,15 +115,49 @@ class MultiSeatDrawTest extends TestCase
         $this->assertCount(5, $whaleEntries);
 
         if ($whaleEntries->firstWhere('status', 'won')) {
-            // won with one seat -> the other 4 credit straight to wallet, no choice window
-            $this->assertSame(4, $whaleEntries->where('status', 'credited')->count());
-            $this->assertSame(0, $whaleEntries->where('status', 'lost_pending')->count());
+            // Won with one seat. The other 4 are NOT auto-refunded — they get the
+            // same 7-day choice as anyone else, so the buyer can still complete
+            // those purchases if they want to.
+            $this->assertSame(4, $whaleEntries->where('status', 'lost_pending')->count());
+            $this->assertSame(0, $whaleEntries->where('status', 'credited')->count());
             $this->assertSame(1, $whale->orders()->where('source', 'draw_win')->count()); // exactly ONE item
-            $this->assertGreaterThan(0, $whale->fresh()->wallet_balance);
+            $this->assertSame(0, $whale->fresh()->wallet_balance);                        // nothing force-credited
         } else {
             // didn't win -> all 5 seats get the normal 7-day choice
             $this->assertSame(5, $whaleEntries->where('status', 'lost_pending')->count());
             $this->assertSame(0, $whale->fresh()->wallet_balance);
+        }
+
+        // Either way, every seat that isn't the winning one is awaiting a choice.
+        $this->assertSame(0, $whaleEntries->where('status', 'credited')->count());
+    }
+
+    /**
+     * A winner's other seats keep their choice instead of being force-refunded:
+     * exactly one item is won, and every remaining seat is left awaiting a
+     * decision (buy the rest at 99%, or move the advance to the wallet).
+     */
+    public function test_a_winners_other_seats_await_a_choice_rather_than_auto_refunding(): void
+    {
+        config(['draw.batch_size' => 3]);
+        $draw = app(DrawService::class);
+
+        // One buyer takes every seat, so they are guaranteed to be the winner.
+        $buyer = User::factory()->create(['role' => 'customer']);
+        collect(range(0, 2))->each(fn ($i) => $draw->enter($this->product(20000 - $i * 100), $buyer));
+
+        $entries = $buyer->drawEntries()->get();
+        $this->assertSame(1, $entries->where('status', 'won')->count(), 'exactly one item is won');
+        $this->assertSame(2, $entries->where('status', 'lost_pending')->count(), 'the rest await a choice');
+        $this->assertSame(0, $entries->where('status', 'credited')->count(), 'nothing auto-refunded');
+        $this->assertSame(0, $buyer->fresh()->wallet_balance);
+
+        // Those seats carry a deadline and are actionable, so the buyer can still
+        // complete the purchase — the whole point of the change.
+        foreach ($entries->where('status', 'lost_pending') as $e) {
+            $this->assertNotNull($e->choice_deadline_at);
+            $this->assertTrue($e->awaitingChoice());
+            $this->assertGreaterThan(0, $e->balanceDue());
         }
     }
 
