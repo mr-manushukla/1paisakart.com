@@ -168,6 +168,35 @@ class AdminPurchaseAnalyticsTest extends TestCase
         $this->assertCount(0, $res->json('data'));
     }
 
+    /** Both ends of the range are inclusive whole days, and the totals follow. */
+    public function test_the_date_range_filters_rows_and_summary(): void
+    {
+        $draw = app(DrawService::class);
+        foreach (['2026-07-01', '2026-07-15', '2026-08-01'] as $day) {
+            $this->travelTo(\Illuminate\Support\Carbon::parse($day.' 10:00:00'));
+            $draw->enter($this->product(2000), User::factory()->create(['role' => 'customer']));
+        }
+        $this->travelBack();
+
+        $admin = $this->actingAs($this->admin());
+
+        // The window's own edge days must be included, not clipped.
+        $res = $admin->getJson('/api/admin/purchases/draws?from=2026-07-01&to=2026-07-15')->assertOk();
+        $this->assertSame(2, $res->json('summary.bookings'));
+        $this->assertCount(2, $res->json('data'));
+
+        $this->assertSame(1, $admin->getJson('/api/admin/purchases/draws?from=2026-08-01')->json('summary.bookings'));
+        $this->assertSame(2, $admin->getJson('/api/admin/purchases/draws?to=2026-07-15')->json('summary.bookings'));
+        $this->assertSame(3, $admin->getJson('/api/admin/purchases/draws')->json('summary.bookings'));
+    }
+
+    public function test_a_junk_date_is_rejected_at_the_boundary(): void
+    {
+        $this->actingAs($this->admin())
+            ->getJson('/api/admin/purchases/draws?from=not-a-date')
+            ->assertStatus(422);
+    }
+
     public function test_only_admins_may_read_purchase_analytics(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'customer']))

@@ -51,6 +51,8 @@ async function loadBatches() { batches.value = (await api.get('/admin/batches'))
 // ---- Purchase analytics: 1% bookings vs full payments ----
 const buyTab = ref('draws')          // draws | full
 const buyQ = ref('')
+const buyFrom = ref('')              // inclusive, yyyy-mm-dd
+const buyTo = ref('')
 const buyLoading = ref(false)
 const purchases = ref({ data: [], summary: {}, current_page: 1, last_page: 1 })
 
@@ -58,12 +60,13 @@ async function loadPurchases(page = 1) {
   buyLoading.value = true
   try {
     const { data } = await api.get(`/admin/purchases/${buyTab.value}`, {
-      params: { q: buyQ.value || undefined, page },
+      params: { q: buyQ.value || undefined, from: buyFrom.value || undefined, to: buyTo.value || undefined, page },
     })
     purchases.value = data
   } catch (e) { toast(apiError(e), 'error') } finally { buyLoading.value = false }
 }
 function switchBuyTab(t) { buyTab.value = t; purchases.value = { data: [], summary: {} }; loadPurchases() }
+function clearBuyFilters() { buyQ.value = ''; buyFrom.value = ''; buyTo.value = ''; loadPurchases() }
 
 const drawStatusLabel = {
   active: 'In the pool', won: '🏆 Won', lost_pending: 'Awaiting choice',
@@ -291,7 +294,7 @@ async function saveSlides() {
     <!-- Coupons: platform-wide, plus oversight of every vendor coupon -->
     <!-- Purchases: who bought what, split by how they paid -->
     <div v-show="tab === 'purchases'" class="space-y-4">
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="space-y-3">
         <div class="flex gap-2">
           <button
             class="chip border"
@@ -304,9 +307,18 @@ async function saveSlides() {
             @click="switchBuyTab('full')"
           >Full Payment Purchases</button>
         </div>
-        <form class="flex gap-2" @submit.prevent="loadPurchases()">
+        <form class="flex flex-wrap items-center gap-2" @submit.prevent="loadPurchases()">
+          <label class="flex items-center gap-1 text-xs text-slate-500">
+            From
+            <input v-model="buyFrom" type="date" :max="buyTo || undefined" class="input py-1 text-sm" @change="loadPurchases()" />
+          </label>
+          <label class="flex items-center gap-1 text-xs text-slate-500">
+            To
+            <input v-model="buyTo" type="date" :min="buyFrom || undefined" class="input py-1 text-sm" @change="loadPurchases()" />
+          </label>
           <input v-model="buyQ" class="input max-w-xs text-sm" placeholder="Search customer or product…" />
           <button class="btn-ghost px-3 py-1.5 text-sm">Search</button>
+          <button v-if="buyQ || buyFrom || buyTo" type="button" class="text-xs text-slate-500 underline" @click="clearBuyFilters">Clear</button>
         </form>
       </div>
 

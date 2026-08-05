@@ -91,17 +91,22 @@ class PurchaseController extends Controller
     }
 
     /**
-     * Narrow by customer name/email or product name. Grouped, so the OR can't
-     * escape an earlier filter — without the group, full()'s source='buy'
-     * would only bind to the user branch and leak winner orders in.
+     * Narrow by customer/product text and by date range. The text search is
+     * grouped, so the OR can't escape an earlier filter — without the group,
+     * full()'s source='buy' would only bind to the user branch and leak
+     * winner orders in. Both dates are inclusive whole days.
      */
     private function search($query, Request $request, string $productPath)
     {
+        $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date']);
         $q = $request->string('q')->toString();
 
-        return $query->when($q !== '', fn ($b) => $b->where(fn ($g) => $g
-            ->whereHas('user', fn ($u) => $u->where('name', 'like', "%$q%")->orWhere('email', 'like', "%$q%"))
-            ->orWhereHas($productPath, fn ($p) => $p->where('name', 'like', "%$q%"))));
+        return $query
+            ->when($q !== '', fn ($b) => $b->where(fn ($g) => $g
+                ->whereHas('user', fn ($u) => $u->where('name', 'like', "%$q%")->orWhere('email', 'like', "%$q%"))
+                ->orWhereHas($productPath, fn ($p) => $p->where('name', 'like', "%$q%"))))
+            ->when($request->input('from'), fn ($b, $d) => $b->whereDate('created_at', '>=', $d))
+            ->when($request->input('to'), fn ($b, $d) => $b->whereDate('created_at', '<=', $d));
     }
 
     /** Headline numbers for the 1% tab, over the rows currently shown. */
