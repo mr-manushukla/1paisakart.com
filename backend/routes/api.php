@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\CustomerController as AdminCustomerController;
 use App\Http\Controllers\Admin\PlatformController;
+use App\Http\Controllers\Admin\PurchaseController as AdminPurchaseController;
 use App\Http\Controllers\Admin\VendorController as AdminVendorController;
 use App\Http\Controllers\AddressController;
 use App\Http\Controllers\AuthController;
@@ -94,6 +95,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/coupons/{coupon}', [AdminCouponController::class, 'destroy']);
         Route::get('/customers', [AdminCustomerController::class, 'index']);
         Route::get('/customers/{user}/draws', [AdminCustomerController::class, 'draws']);
+        // Purchase analytics, split by how the customer paid.
+        Route::get('/purchases/draws', [AdminPurchaseController::class, 'draws']);
+        Route::get('/purchases/full', [AdminPurchaseController::class, 'full']);
         Route::get('/batches', [PlatformController::class, 'batches']);
         Route::post('/batches/{batch}/cancel', [PlatformController::class, 'cancelBatch']);
         Route::get('/settings', [PlatformController::class, 'settings']);

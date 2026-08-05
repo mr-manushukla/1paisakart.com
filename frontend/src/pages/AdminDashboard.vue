@@ -48,6 +48,28 @@ async function loadCats() { categories.value = (await api.get('/admin/categories
 async function loadVendors() { vendors.value = (await api.get('/admin/vendors')).data }
 async function loadBatches() { batches.value = (await api.get('/admin/batches')).data.data }
 
+// ---- Purchase analytics: 1% bookings vs full payments ----
+const buyTab = ref('draws')          // draws | full
+const buyQ = ref('')
+const buyLoading = ref(false)
+const purchases = ref({ data: [], summary: {}, current_page: 1, last_page: 1 })
+
+async function loadPurchases(page = 1) {
+  buyLoading.value = true
+  try {
+    const { data } = await api.get(`/admin/purchases/${buyTab.value}`, {
+      params: { q: buyQ.value || undefined, page },
+    })
+    purchases.value = data
+  } catch (e) { toast(apiError(e), 'error') } finally { buyLoading.value = false }
+}
+function switchBuyTab(t) { buyTab.value = t; purchases.value = { data: [], summary: {} }; loadPurchases() }
+
+const drawStatusLabel = {
+  active: 'In the pool', won: '🏆 Won', lost_pending: 'Awaiting choice',
+  converted: 'Paid the 99%', credited: 'Moved to wallet', refunded: 'Refunded',
+}
+
 // Drawn pools only, for the Winners tab.
 const winnerQ = ref('')
 const wonBatches = computed(() => batches.value.filter((b) => b.winner))
@@ -84,7 +106,7 @@ async function deleteCoupon(c) {
   catch (e) { toast(apiError(e), 'error') }
 }
 
-onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers(), loadCoupons(), loadSlides()]))
+onMounted(() => Promise.all([loadCats(), loadVendors(), loadBatches(), loadSettings(), loadCustomers(), loadCoupons(), loadSlides(), loadPurchases()]))
 
 async function addCat() {
   if (!newCat.value) return
@@ -166,7 +188,7 @@ async function saveSlides() {
     <h1 class="mb-6 font-display text-2xl font-bold">Admin dashboard</h1>
 
     <div class="mb-6 flex gap-2 border-b border-slate-100">
-      <button v-for="t in ['categories', 'vendors', 'customers', 'coupons', 'batches', 'winners', 'slides', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
+      <button v-for="t in ['categories', 'vendors', 'customers', 'purchases', 'coupons', 'batches', 'winners', 'slides', 'settings']" :key="t" class="px-4 py-2 text-sm font-medium capitalize" :class="tab === t ? 'border-b-2 border-brand-600 text-brand-700' : 'text-slate-500'" @click="tab = t">{{ t }}</button>
     </div>
 
     <!-- Categories -->
@@ -267,6 +289,97 @@ async function saveSlides() {
     </div>
 
     <!-- Coupons: platform-wide, plus oversight of every vendor coupon -->
+    <!-- Purchases: who bought what, split by how they paid -->
+    <div v-show="tab === 'purchases'" class="space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex gap-2">
+          <button
+            class="chip border"
+            :class="buyTab === 'draws' ? 'border-accent-500 bg-accent-500/10 text-accent-700' : 'border-slate-200 bg-white text-slate-500'"
+            @click="switchBuyTab('draws')"
+          >1% Purchases</button>
+          <button
+            class="chip border"
+            :class="buyTab === 'full' ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 bg-white text-slate-500'"
+            @click="switchBuyTab('full')"
+          >Full Payment Purchases</button>
+        </div>
+        <form class="flex gap-2" @submit.prevent="loadPurchases()">
+          <input v-model="buyQ" class="input max-w-xs text-sm" placeholder="Search customer or product…" />
+          <button class="btn-ghost px-3 py-1.5 text-sm">Search</button>
+        </form>
+      </div>
+
+      <!-- Headline numbers -->
+      <div v-if="buyTab === 'draws'" class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="card p-3"><p class="font-display text-xl font-extrabold text-accent-700">{{ purchases.summary?.bookings ?? 0 }}</p><p class="text-xs text-slate-500">1% bookings</p></div>
+        <div class="card p-3"><p class="font-display text-xl font-extrabold">{{ purchases.summary?.customers ?? 0 }}</p><p class="text-xs text-slate-500">Customers</p></div>
+        <div class="card p-3"><p class="font-display text-xl font-extrabold">{{ money(purchases.summary?.collected ?? 0) }}</p><p class="text-xs text-slate-500">Advances collected</p></div>
+        <div class="card p-3">
+          <p class="font-display text-xl font-extrabold">{{ purchases.summary?.won ?? 0 }}</p>
+          <p class="text-xs text-slate-500">Won · {{ purchases.summary?.converted ?? 0 }} paid 99% · {{ purchases.summary?.credited ?? 0 }} to wallet</p>
+        </div>
+      </div>
+      <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div class="card p-3"><p class="font-display text-xl font-extrabold text-brand-700">{{ purchases.summary?.orders ?? 0 }}</p><p class="text-xs text-slate-500">Full-payment orders</p></div>
+        <div class="card p-3"><p class="font-display text-xl font-extrabold">{{ purchases.summary?.customers ?? 0 }}</p><p class="text-xs text-slate-500">Customers</p></div>
+        <div class="card p-3"><p class="font-display text-xl font-extrabold">{{ money(purchases.summary?.revenue ?? 0) }}</p><p class="text-xs text-slate-500">Revenue taken</p></div>
+        <div class="card p-3">
+          <p class="font-display text-xl font-extrabold">{{ purchases.summary?.direct ?? 0 }}</p>
+          <p class="text-xs text-slate-500">Direct buys · {{ purchases.summary?.from_draw ?? 0 }} after a draw</p>
+        </div>
+      </div>
+
+      <div v-if="buyLoading" class="card h-40 animate-pulse bg-slate-50" />
+
+      <!-- 1% bookings -->
+      <div v-else-if="buyTab === 'draws'" class="card divide-y divide-slate-100">
+        <div v-for="r in purchases.data" :key="r.id" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <div class="min-w-0">
+            <p class="font-semibold">{{ r.user.name }} <span class="text-xs font-normal text-slate-400">{{ r.user.email }}</span></p>
+            <p class="truncate text-sm text-slate-600">{{ r.product }}</p>
+            <p class="text-xs text-slate-400">{{ r.club }} · pool #{{ r.pool_no }} · {{ new Date(r.at).toLocaleDateString('en-IN') }}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-semibold text-accent-700">{{ money(r.advance) }}</p>
+            <p class="text-xs text-slate-400">of {{ money(r.product_price) }}</p>
+            <span class="chip mt-1 bg-slate-100 text-slate-600">{{ drawStatusLabel[r.status] || r.status }}</span>
+          </div>
+        </div>
+        <p v-if="!purchases.data?.length" class="p-8 text-center text-slate-500">No 1% purchases yet.</p>
+      </div>
+
+      <!-- Full payments -->
+      <div v-else class="card divide-y divide-slate-100">
+        <div v-for="r in purchases.data" :key="r.id" class="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
+          <div class="min-w-0">
+            <p class="font-semibold">
+              {{ r.user.name }} <span class="text-xs font-normal text-slate-400">{{ r.user.email }}</span>
+              <span class="chip ml-1" :class="r.origin === 'draw_99' ? 'bg-accent-500/10 text-accent-700' : 'bg-brand-50 text-brand-700'">
+                {{ r.origin === 'draw_99' ? 'Paid 99% after draw' : 'Direct buy' }}
+              </span>
+            </p>
+            <p v-for="(it, i) in r.items" :key="i" class="truncate text-sm text-slate-600">
+              {{ it.product }} <span class="text-slate-400">× {{ it.qty }}</span>
+            </p>
+            <p class="text-xs text-slate-400">Order #{{ r.id }} · {{ new Date(r.at).toLocaleDateString('en-IN') }}</p>
+          </div>
+          <div class="text-right">
+            <p class="font-semibold text-brand-700">{{ money(r.payable) }}</p>
+            <p v-if="r.wallet_applied" class="text-xs text-slate-400">1% Wallet − {{ money(r.wallet_applied) }}</p>
+            <p v-if="r.discount" class="text-xs text-green-700">Coupon − {{ money(r.discount) }}</p>
+          </div>
+        </div>
+        <p v-if="!purchases.data?.length" class="p-8 text-center text-slate-500">No full-payment purchases yet.</p>
+      </div>
+
+      <div v-if="purchases.last_page > 1" class="flex items-center justify-center gap-2">
+        <button class="btn-ghost px-3 py-1.5 text-sm" :disabled="purchases.current_page <= 1" @click="loadPurchases(purchases.current_page - 1)">Prev</button>
+        <span class="text-sm text-slate-500">Page {{ purchases.current_page }} of {{ purchases.last_page }}</span>
+        <button class="btn-ghost px-3 py-1.5 text-sm" :disabled="purchases.current_page >= purchases.last_page" @click="loadPurchases(purchases.current_page + 1)">Next</button>
+      </div>
+    </div>
+
     <div v-show="tab === 'coupons'" class="grid gap-6 lg:grid-cols-[320px_1fr]">
       <form class="card h-fit space-y-3 p-4" @submit.prevent="createCoupon">
         <h2 class="font-semibold">New platform coupon</h2>
