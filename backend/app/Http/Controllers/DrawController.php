@@ -37,19 +37,56 @@ class DrawController extends Controller
      * ?status=won (or any entry status) narrows the list. Without it the results
      * are paged, so a heavy booker's wins can sit pages deep — the Winnings tab
      * asks for status=won so it never depends on where a win happens to land.
+     *
+     * ?from / ?to bound the list by booking date (inclusive whole days), which is
+     * what the month / year / custom-range pickers send.
      */
     public function myDraws(Request $request)
     {
+        $request->validate(['from' => 'nullable|date', 'to' => 'nullable|date']);
+
         $user = $request->user();
         $status = $request->string('status')->toString();
 
-        $query = $user->drawEntries()->with(['product', 'batch.club', 'batch.winnerEntry'])->latest('id');
-        if ($status !== '') {
-            $query->where('status', $status);
-        }
+        $query = $user->drawEntries()->with(['product', 'batch.club', 'batch.winnerEntry'])->latest('id')
+            ->when($status !== '', fn ($q) => $q->where('status', $status))
+            ->when($request->input('from'), fn ($q, $d) => $q->whereDate('created_at', '>=', $d))
+            ->when($request->input('to'), fn ($q, $d) => $q->whereDate('created_at', '<=', $d));
 
-        return DrawEntryResource::collection($query->paginate($status !== '' ? 100 : 20))
+        return DrawEntryResource::collection($query->paginate($status !== '' ? 50 : 20))
             ->additional(['summary' => $user->drawSummary()]);
+    }
+
+    /** What this win costs to release — prize value, TDS, and what's payable. */
+    public function claimQuote(Request $request, DrawEntry $entry): array
+    {
+        $this->authorizeOwner($request, $entry);
+        abort_unless($entry->status === 'won', 422, 'This booking did not win a draw.');
+
+        return [
+            'entry' => new DrawEntryResource($entry->load(['product', 'batch.club'])),
+            'claimed_at' => $entry->claimed_at,
+            'quote' => $this->draw->claimQuote($entry),
+        ];
+    }
+
+    /**
+     * Complete a claim with no money to move (TDS switched off). Anything payable
+     * goes through the gateway instead — the server prices it either way.
+     */
+    public function claim(Request $request, DrawEntry $entry): OrderResource
+    {
+        $this->authorizeOwner($request, $entry);
+        $data = $request->validate(['address_id' => 'required|integer']);
+
+        abort_unless(
+            $this->draw->claimQuote($entry)['payable'] === 0,
+            422,
+            'This claim needs the TDS paid first.'
+        );
+        $order = $this->draw->claim($entry, (int) $data['address_id']);
+
+        return new OrderResource($order->load('items.product'));
     }
 
     /** Option A — pay the remaining 99% and take the booked product. */

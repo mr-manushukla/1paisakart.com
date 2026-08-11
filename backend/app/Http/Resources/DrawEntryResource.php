@@ -17,6 +17,9 @@ class DrawEntryResource extends JsonResource
             'balance_due' => $this->product ? $this->balanceDue() : null,
             'choice_deadline_at' => $this->choice_deadline_at,
             'awaiting_choice' => $this->awaitingChoice(),
+            // A win isn't dispatched until it's claimed — address given, TDS settled.
+            'awaiting_claim' => $this->awaitingClaim(),
+            'claimed_at' => $this->claimed_at,
             // True when this customer won this pool with a DIFFERENT seat. Their
             // other seats still need a decision, but telling them "you didn't win"
             // would be plainly wrong.

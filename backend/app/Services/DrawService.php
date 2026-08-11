@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Exceptions\BusinessException;
+use App\Models\Address;
 use App\Models\Club;
 use App\Models\DrawBatch;
 use App\Models\DrawEntry;
@@ -214,6 +215,78 @@ class DrawService
         }
     }
 
+    /**
+     * What a winner owes to release their prize.
+     *
+     * The prize itself is already covered by their 1% — this is only the tax.
+     * A prize won in kind still attracts TDS under s.194B, and the payer may not
+     * release it until that tax is accounted for, so the winner settles it here
+     * and the platform deposits it with the government.
+     */
+    public function claimQuote(DrawEntry $entry): array
+    {
+        $rate = max(0, (int) config('draw.tds_pct', 30));
+        $prize = $entry->productPrice();
+        // Round up: never under-deduct tax that has to be deposited in full.
+        $tds = (int) ceil($prize * $rate / 100);
+
+        return [
+            'prize_value' => $prize,
+            'advance_paid' => $entry->amount,
+            'tds_pct' => $rate,
+            'tds_amount' => $tds,
+            'payable' => $tds,          // the product costs the winner nothing further
+        ];
+    }
+
+    /**
+     * Release a won prize: attach the delivery address, record the tax collected,
+     * and move the order on to dispatch. Runs exactly once per win.
+     */
+    public function claim(DrawEntry $entry, int $addressId, ?Payment $payment = null): Order
+    {
+        return DB::transaction(function () use ($entry, $addressId, $payment) {
+            $entry = DrawEntry::whereKey($entry->id)->lockForUpdate()->firstOrFail();
+            if ($entry->status !== 'won') {
+                throw new BusinessException('This booking did not win a draw.');
+            }
+            if ($entry->claimed_at !== null) {
+                throw new BusinessException('This prize has already been claimed.');
+            }
+
+            $address = Address::whereKey($addressId)->where('user_id', $entry->user_id)->first();
+            if (! $address) {
+                throw new BusinessException('Choose one of your own delivery addresses.');
+            }
+
+            $order = Order::whereKey($entry->order_id)->lockForUpdate()->firstOrFail();
+            $quote = $this->claimQuote($entry);
+
+            $order->update([
+                'address_id' => $address->id,
+                'tds_amount' => $quote['tds_amount'],
+                'status' => 'paid',          // tax settled — ready to dispatch
+            ]);
+            $entry->update(['claimed_at' => now()]);
+
+            // The gateway path already wrote its Payment row; this stub covers the
+            // service-level path (admin, seeding, tests) so the money still has a trail.
+            if ($quote['payable'] > 0 && ! $payment) {
+                Payment::create([
+                    'user_id' => $entry->user_id,
+                    'order_id' => $order->id,
+                    'entry_id' => $entry->id,
+                    'amount' => $quote['payable'],
+                    'gateway' => 'stub',
+                    'status' => 'success',
+                    'ref' => 'tds-'.$order->id,
+                ]);
+            }
+
+            return $order->load('items');
+        });
+    }
+
     /** Option A — pay the remaining 99% and take the booked product. */
     public function convertToPurchase(DrawEntry $entry, bool $applyWallet = false, ?Payment $payment = null): Order
     {
@@ -342,6 +415,9 @@ class DrawService
     /**
      * Winner keeps the product for the 1% already paid; the platform absorbs the rest.
      * Platform subsidy is derivable as subtotal - wallet_applied - payable.
+     *
+     * Opens as 'pending': the prize isn't dispatched until the winner claims it —
+     * gives a delivery address and settles the s.194B tax. claim() moves it on.
      */
     private function fulfilWinnerOrder(DrawEntry $winner): Order
     {
@@ -352,7 +428,7 @@ class DrawService
             'subtotal' => $product->effectivePrice(),
             'wallet_applied' => 0,
             'payable' => $winner->amount,
-            'status' => 'fulfilled',
+            'status' => 'pending',
             'source' => 'draw_win',
         ]);
         $order->items()->create([

@@ -19,6 +19,7 @@ class OrderResource extends JsonResource
             'coupon' => $this->whenLoaded('coupon', fn () => $this->coupon?->code),
             'wallet_applied' => $this->wallet_applied,
             'payable' => $this->payable,
+            'tds_amount' => $this->tds_amount,
             'created_at' => $this->created_at,
             'items' => $this->whenLoaded('items', fn () => $this->items->map(fn ($item) => [
                 'product' => $item->product?->name,

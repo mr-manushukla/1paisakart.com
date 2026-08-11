@@ -19,6 +19,8 @@ See `docs/BUSINESS_RULES.md` for the authoritative spec. Summary:
    draws **one winner** (1 in 100) who keeps **the product they booked** — the 1% covers it and the
    **platform absorbs the balance**. The other 99 are **not auto-refunded**: they get a **7-day window** to
    either **pay the remaining 99%** (Option A) or **move the 1% to wallet** (Option B). No choice → Option B.
+   The winner then **claims** the prize — delivery address + **TDS at `tds_pct`** (default 30%, s.194B) on
+   the prize value — before it is dispatched. Claim is exactly-once; the order sits at `pending` until then.
 
 ### Wallet rules (restricted credit)
 - Usable on a purchase, capped at **1% of that item's price** (`wallet_cap_pct`).

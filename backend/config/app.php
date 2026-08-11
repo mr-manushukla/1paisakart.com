@@ -18,6 +18,10 @@ return [
     // One-time shell-less deploy endpoint token (see routes/web.php /__deploy).
     'deploy_token' => env('DEPLOY_TOKEN'),
 
+    // Shared password gating the whole site while it's private. Empty (the
+    // default) means no gate — so nothing changes for anyone who doesn't set it.
+    'site_password' => env('SITE_PASSWORD', ''),
+
     /*
     |--------------------------------------------------------------------------
     | Application Environment

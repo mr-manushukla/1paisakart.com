@@ -37,9 +37,19 @@ up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolv
    The advance is **real money only** — wallet credit can never pay it. Participation requires the advance.
 2. **The draw** — a club pool holds **100 seats**. When the 100th seat is booked the pool closes and draws
    **one winner** (odds **1 in 100**).
-3. **If you win** — you receive **the product you booked**. Your 1% covers the total cost; no further
-   payment (government taxes on the prize value are the winner's responsibility). The **platform absorbs**
-   the balance so the vendor is paid in full. Subsidy is derivable as `subtotal - wallet_applied - payable`.
+3. **If you win** — you receive **the product you booked**. Your 1% covers the total cost of the product;
+   no further payment for the goods. The **platform absorbs** the balance so the vendor is paid in full.
+   Subsidy is derivable as `subtotal - wallet_applied - payable`.
+   The prize is **not dispatched on the draw** — the winner must **claim** it:
+   - Pick a delivery address (their own; ownership is checked at the payment boundary).
+   - Pay **TDS on the prize value** at `tds_pct` (default **30%**, s.194B). The prize is won *in kind*,
+     so there is nothing to deduct the tax from — the winner pays it and the platform deposits it.
+     Rounded **up** to the paisa: tax that must be deposited in full is never under-deducted.
+   - The claim is exactly-once (`draw_entries.claimed_at`, under a row lock). The winner's order opens
+     as `pending` and moves to `paid` — cleared for dispatch — only on a completed claim.
+   - The tax collected is recorded on the order as `tds_amount`. `payable` stays at the 1% advance.
+   - Wins drawn **before** this rule shipped were backfilled as already claimed; they were fulfilled
+     under the old "dispatch on draw" rule and are not asked for tax retroactively.
 4. **If you don't win** — the advance is **not** auto-refunded. The entry becomes `lost_pending` with a
    **7-day choice window** (`choice_window_days`), and the customer picks:
    - **Option A — Purchase**: pay the remaining 99%; the 1% is fully adjusted (`payable = listed_price - advance`).
@@ -73,6 +83,8 @@ up to ₹5,00,000** (101 clubs, seeded by migration). A product's club is resolv
   seats — is `lost_pending` with a choice deadline. Nothing is auto-credited at draw time.
 - No customer holds two seats for the same product in one pool.
 - The winner's order is for **the product that entry booked**, with `payable == advance`.
+- A prize is claimed **at most once**, and only ever to an address the winner owns. Until it is claimed
+  the order stays `pending` — nothing ships on an unpaid TDS.
 - No booking advance is ever paid from wallet credit.
 - Wallet applied to a single item ≤ `floor(item_price * wallet_cap_pct / 100)`.
 - No pool is drawn twice.

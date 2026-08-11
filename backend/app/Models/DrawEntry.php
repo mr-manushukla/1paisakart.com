@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class DrawEntry extends Model
 {
     protected $fillable = [
-        'batch_id', 'user_id', 'product_id', 'amount', 'product_price', 'status', 'choice_deadline_at', 'order_id',
+        'batch_id', 'user_id', 'product_id', 'amount', 'product_price', 'status', 'choice_deadline_at', 'claimed_at', 'order_id',
     ];
 
     protected function casts(): array
@@ -17,6 +17,7 @@ class DrawEntry extends Model
             'amount' => 'integer',
             'product_price' => 'integer',
             'choice_deadline_at' => 'datetime',
+            'claimed_at' => 'datetime',
         ];
     }
 
@@ -44,5 +45,11 @@ class DrawEntry extends Model
     public function awaitingChoice(): bool
     {
         return $this->status === 'lost_pending';
+    }
+
+    /** Won, but the winner hasn't yet given an address and settled the TDS. */
+    public function awaitingClaim(): bool
+    {
+        return $this->status === 'won' && $this->claimed_at === null;
     }
 }

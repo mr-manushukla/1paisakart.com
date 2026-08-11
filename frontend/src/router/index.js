@@ -17,6 +17,7 @@ const routes = [
   { path: '/addresses', name: 'addresses', component: () => import('../pages/Addresses.vue'), meta: { auth: true, role: 'customer' } },
   { path: '/orders', name: 'orders', component: () => import('../pages/Orders.vue'), meta: { auth: true, role: 'customer' } },
   { path: '/my-draws', name: 'my-draws', component: () => import('../pages/MyDraws.vue'), meta: { auth: true, role: 'customer' } },
+  { path: '/claim/:entry', name: 'claim', component: () => import('../pages/ClaimPrize.vue'), meta: { auth: true, role: 'customer' } },
 
   { path: '/vendor', name: 'vendor', component: () => import('../pages/VendorDashboard.vue'), meta: { auth: true, role: 'vendor' } },
   { path: '/admin', name: 'admin', component: () => import('../pages/AdminDashboard.vue'), meta: { auth: true, role: 'admin' } },

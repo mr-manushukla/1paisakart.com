@@ -13,7 +13,7 @@ class PaymentController extends Controller
     public function createOrder(Request $request): array
     {
         $data = $request->validate([
-            'intent' => ['required', 'in:checkout,draw,balance'],
+            'intent' => ['required', 'in:checkout,draw,balance,claim'],
             // checkout — a cart may hold purchases, 1% bookings, or both
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required_with:items', 'integer', 'exists:products,id'],
@@ -26,11 +26,13 @@ class PaymentController extends Controller
             'balance_items.*' => ['integer', 'exists:draw_entries,id'],
             // draw — always a single seat (one seat per product per pool)
             'product_slug' => ['required_if:intent,draw', 'string'],
-            // balance
-            'entry_id' => ['required_if:intent,balance', 'integer'],
+            // balance / claim — both act on one existing booking
+            'entry_id' => ['required_if:intent,balance', 'required_if:intent,claim', 'integer'],
             'apply_wallet' => ['boolean'],
             'coupon_code' => ['nullable', 'string', 'max:40'],
-            'address_id' => ['nullable', 'integer', 'exists:addresses,id'],
+            // A prize can't be claimed without somewhere to send it. Ownership of
+            // the address is checked in the quote, not just its existence.
+            'address_id' => ['required_if:intent,claim', 'nullable', 'integer', 'exists:addresses,id'],
         ]);
 
         return $this->razorpay->createOrder($request->user(), $data);

@@ -123,6 +123,7 @@ class RazorpayService
             'checkout' => $this->quoteCheckout($user, $input),
             'draw' => $this->quoteDraw($user, $input),
             'balance' => $this->quoteBalance($user, $input),
+            'claim' => $this->quoteClaim($user, $input),
             default => throw new BusinessException('Unknown payment type.'),
         };
     }
@@ -258,6 +259,31 @@ class RazorpayService
         ];
     }
 
+    /**
+     * Claiming a prize: the winner pays only the s.194B tax on it, computed here
+     * from the price snapshotted at booking time — never from the client.
+     */
+    private function quoteClaim(User $user, array $input): array
+    {
+        $entry = DrawEntry::with('product')->findOrFail((int) ($input['entry_id'] ?? 0));
+        abort_unless($entry->user_id === $user->id, 403, 'Not your booking.');
+        if (! $entry->awaitingClaim()) {
+            throw new BusinessException('This prize is not awaiting a claim.');
+        }
+        $addressId = (int) ($input['address_id'] ?? 0);
+        abort_unless(
+            $user->addresses()->whereKey($addressId)->exists(),
+            422,
+            'Choose one of your own delivery addresses.'
+        );
+
+        return [
+            $this->draw->claimQuote($entry)['payable'],
+            ['entry_id' => $entry->id, 'address_id' => $addressId],
+            'Prize claim — TDS',
+        ];
+    }
+
     /** Execute the paid-for intent and link the result back to the payment row. */
     private function fulfil(Payment $payment, User $user): array
     {
@@ -339,6 +365,15 @@ class RazorpayService
                 $payment->update(['order_id' => $order->id, 'entry_id' => $entry->id]);
 
                 return ['type' => 'order', 'id' => $order->id];
+            })(),
+
+            'claim' => (function () use ($p, $user, $payment) {
+                $entry = DrawEntry::findOrFail($p['entry_id']);
+                abort_unless($entry->user_id === $user->id, 403);
+                $order = $this->draw->claim($entry, (int) $p['address_id'], $payment);
+                $payment->update(['order_id' => $order->id, 'entry_id' => $entry->id]);
+
+                return ['type' => 'claim', 'id' => $order->id];
             })(),
 
             default => throw new BusinessException('Unknown payment type.'),

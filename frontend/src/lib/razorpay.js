@@ -23,7 +23,7 @@ function loadSdk() {
  *  - Razorpay collects the money
  *  - the server verifies the signature and only then fulfils the order/booking
  *
- * @param {{intent:'checkout'|'draw'|'balance'} & Record<string, any>} intent
+ * @param {{intent:'checkout'|'draw'|'balance'|'claim'} & Record<string, any>} intent
  * @returns {Promise<object>} the fulfilment result, or null if the user dismissed checkout
  */
 export async function payAndFulfil(intent) {

@@ -16,5 +16,11 @@ return [
     // reinstate a ceiling.
     'max_entries_per_user' => 0,
     'choice_window_days' => 7,    // non-winner has this long to pick pay-99% vs wallet credit
+
+    // Tax deducted at source on a prize, s.194B. The prize is won in kind, so the
+    // winner pays this to us at claim time and we deposit it with the government —
+    // the prize itself stays covered by their 1%, the platform absorbs the rest.
+    // Set to 0 to turn claiming into address-only (no payment step).
+    'tds_pct' => 30,
     'default_platform_fee_pct' => 8, // listed_price = vendor payout + this fee (global default)
 ];

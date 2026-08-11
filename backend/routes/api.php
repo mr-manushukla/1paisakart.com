@@ -58,6 +58,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/my-draws', [DrawController::class, 'myDraws']);
         Route::post('/draw-entries/{entry}/purchase', [DrawController::class, 'purchase']); // Option A
         Route::post('/draw-entries/{entry}/credit', [DrawController::class, 'credit']);     // Option B
+        Route::get('/draw-entries/{entry}/claim', [DrawController::class, 'claimQuote']);   // prize value + TDS
+        Route::post('/draw-entries/{entry}/claim', [DrawController::class, 'claim']);       // only when nothing is payable
         Route::post('/products/{product:slug}/reviews', [ReviewController::class, 'store']);
         Route::post('/checkout', [CheckoutController::class, 'store']);
         Route::get('/wallet', [WalletController::class, 'show']);

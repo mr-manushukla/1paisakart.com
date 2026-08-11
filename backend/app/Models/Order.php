@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
-    protected $fillable = ['user_id', 'address_id', 'subtotal', 'coupon_id', 'discount', 'wallet_applied', 'payable', 'status', 'source'];
+    protected $fillable = ['user_id', 'address_id', 'subtotal', 'coupon_id', 'discount', 'wallet_applied', 'payable', 'tds_amount', 'status', 'source'];
 
     protected function casts(): array
     {
@@ -17,6 +17,7 @@ class Order extends Model
             'discount' => 'integer',
             'wallet_applied' => 'integer',
             'payable' => 'integer',
+            'tds_amount' => 'integer',
         ];
     }
 

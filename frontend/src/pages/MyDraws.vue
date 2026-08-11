@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import api from '../lib/api'
 import { money } from '../lib/money'
@@ -8,6 +8,7 @@ import { toast, apiError } from '../lib/toast'
 import { payAndFulfil } from '../lib/razorpay'
 import ProductImage from '../components/ProductImage.vue'
 import DrawChoiceButtons from '../components/DrawChoiceButtons.vue'
+import PeriodFilter from '../components/PeriodFilter.vue'
 import { useCartStore } from '../stores/cart'
 
 const cart = useCartStore()
@@ -34,11 +35,33 @@ const badge = {
 
 const summary = ref(null)
 
-async function load() {
-  const { data } = await api.get('/my-draws')
-  entries.value = data.data
+// Bookings can span years — filter by month, year or a custom range. Wins get
+// their own toggle so a winner never has to hunt for one among the losing seats.
+const period = ref({ from: null, to: null })
+const wonOnly = ref(false)
+const page = ref({ current: 1, last: 1 })
+const loadingMore = ref(false)
+
+async function load(p = 1) {
+  const { data } = await api.get('/my-draws', {
+    params: {
+      status: wonOnly.value ? 'won' : undefined,
+      from: period.value.from || undefined,
+      to: period.value.to || undefined,
+      page: p,
+    },
+  })
+  entries.value = p === 1 ? data.data : [...entries.value, ...data.data]
+  page.value = { current: data.meta?.current_page ?? 1, last: data.meta?.last_page ?? 1 }
   summary.value = data.summary
 }
+
+async function more() {
+  loadingMore.value = true
+  try { await load(page.value.current + 1) } finally { loadingMore.value = false }
+}
+
+watch([period, wonOnly], () => load(1))
 onMounted(async () => { try { await load() } finally { loading.value = false } })
 
 const deadline = (iso) => new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -95,9 +118,22 @@ async function moveToWallet(e) {
       </div>
     </div>
 
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        class="chip border text-xs"
+        :class="wonOnly ? 'border-accent-500 bg-accent-500 text-white' : 'border-slate-200 bg-white text-slate-500'"
+        @click="wonOnly = !wonOnly"
+      >
+        🏆 Wins only
+      </button>
+      <PeriodFilter v-model="period" />
+    </div>
+
     <div v-if="loading" class="card h-40 animate-pulse bg-slate-50" />
     <div v-else-if="!entries.length" class="card p-10 text-center text-slate-500">
-      No bookings yet. <RouterLink to="/shop?mode=draw" class="text-brand-700">Explore 1% draws →</RouterLink>
+      <template v-if="period.from || wonOnly">Nothing in this period.</template>
+      <template v-else>No bookings yet. <RouterLink to="/shop?mode=draw" class="text-brand-700">Explore 1% draws →</RouterLink></template>
     </div>
 
     <div v-else class="space-y-4">
@@ -108,14 +144,24 @@ async function moveToWallet(e) {
             <div class="flex flex-wrap items-center gap-2">
               <RouterLink :to="{ name: 'product', params: { slug: e.product?.slug } }" class="font-semibold hover:text-brand-700">{{ e.product?.name }}</RouterLink>
               <span class="chip" :class="badge[e.status]?.[1]">{{ badge[e.status]?.[0] || e.status }}</span>
+              <span v-if="e.awaiting_claim" class="chip animate-pulse bg-amber-100 text-amber-800">Claim pending</span>
             </div>
             <p class="mt-0.5 text-sm text-slate-500">
               Advance paid {{ money(e.advance) }} · {{ e.pool?.club }} · pool {{ e.pool?.filled }}/{{ e.pool?.size }}
             </p>
 
-            <!-- Winner -->
-            <p v-if="e.status === 'won'" class="mt-2 text-sm text-brand-700">
-              The product is yours — your {{ money(e.advance) }} covered it. Government taxes on the prize value may apply.
+            <!-- Winner: nothing ships until the prize is claimed -->
+            <div v-if="e.awaiting_claim" class="mt-3 rounded-xl bg-accent-500/10 p-3">
+              <p class="mb-2 text-sm text-accent-900">
+                The product is yours — your {{ money(e.advance) }} covered it. Confirm delivery and settle
+                the TDS on the prize value to get it dispatched.
+              </p>
+              <RouterLink :to="{ name: 'claim', params: { entry: e.id } }" class="btn-primary block w-full text-center">
+                🏆 Claim prize
+              </RouterLink>
+            </div>
+            <p v-else-if="e.status === 'won'" class="mt-2 text-sm text-brand-700">
+              Claimed — your {{ money(e.advance) }} covered it. It's on its way to you.
             </p>
 
             <!-- Non-winner: the two options, same as My Orders -->
@@ -146,6 +192,10 @@ async function moveToWallet(e) {
           </div>
         </div>
       </div>
+
+      <button v-if="page.current < page.last" class="btn-ghost w-full" :disabled="loadingMore" @click="more">
+        {{ loadingMore ? 'Loading…' : 'Load more' }}
+      </button>
     </div>
   </div>
 </template>

@@ -1,8 +1,25 @@
 <?php
 
+use App\Http\Middleware\SitePassword;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
+
+/**
+ * Unlock the private-site gate. Its own route because the gate middleware runs
+ * after routing — posting the form back to an arbitrary GET-only URL would 405
+ * before the password ever got checked.
+ */
+Route::post('/__unlock', function (Request $request) {
+    $to = SitePassword::safePath($request->input('redirect'));
+
+    if (! SitePassword::matches($request->input('site_password'))) {
+        return redirect($to.'?locked=1');
+    }
+
+    return redirect($to)->withCookie(SitePassword::cookie($request));
+});
 
 // One-time DB setup for shell-less hosts. Protected by DEPLOY_TOKEN. Safe to hit
 // more than once (seeds only when empty). Remove this route once the site is live.

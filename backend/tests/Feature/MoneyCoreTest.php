@@ -91,7 +91,9 @@ class MoneyCoreTest extends TestCase
         $winner = $batch->winnerEntry;
         $order = $winner->order;
         $this->assertSame('draw_win', $order->source);
-        $this->assertSame('fulfilled', $order->status);
+        // Not dispatched on the draw — it waits for the winner to claim it.
+        $this->assertSame('pending', $order->status);
+        $this->assertTrue($winner->awaitingClaim());
         $this->assertSame($winner->product_id, $order->items->first()->product_id);
         $this->assertSame($winner->amount, $order->payable);                 // only the 1% was paid
         $this->assertSame($winner->product->listed_price, $order->subtotal);
