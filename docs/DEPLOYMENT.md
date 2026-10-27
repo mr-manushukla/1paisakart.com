@@ -1,4 +1,73 @@
-# Deployment — GoDaddy cPanel (shell-less)
+# Deployment — Hostinger shared hosting (current)
+
+Live: **https://1paisakart.com** — Hostinger shared (CloudLinux 8), SSH on port **65002**.
+Migrated off GoDaddy cPanel on 2026-10-27; that older setup is kept at the bottom for reference.
+
+## Layout on the server
+```
+~/apps/1paisakart/                      Laravel root — OUTSIDE the web root
+~/deploy-src/1paisakart/                git clone, pulled by deploy.sh
+~/domains/1paisakart.com/public_html/   web root — ONLY Laravel's public/ + the Vue build:
+    index.php                           front controller, absolute paths into ~/apps/1paisakart
+    .htaccess                           Laravel's public/.htaccess + the PHP 8.4 handler
+    assets/                             Vue build output (static)
+    uploads/                            product/slide images (UPLOADS_ROOT points here)
+~/backups/1paisakart-<ts>/              taken automatically by the one-time restructure
+```
+
+**The app must stay outside the web root.** The initial upload put the whole Laravel
+root *in* `public_html`, which served `.env`, `storage/logs/laravel.log` and the entire
+source tree over HTTP. `public_html` now holds only what `public/` holds.
+
+## Gotchas specific to this host
+- **This account hosts five domains** (`maslindia.com`, `bbtentertainment.com`, `finvix.in`,
+  `petabyte.in`, `1paisakart.com`). `~/public_html` is a **symlink to maslindia.com** — never
+  touch it. Everything for this app lives under `~/domains/1paisakart.com/`. `deploy.sh`
+  refuses to run if its web-root path isn't exactly ours.
+- **CLI `php` is 7.4.** Dependencies need >= 8.4.1, so every command uses
+  `/opt/alt/php84/usr/bin/php`, including composer:
+  `/opt/alt/php84/usr/bin/php /usr/local/bin/composer ...`
+- **Web PHP defaulted to 8.3**, which fails composer's platform check. Fixed with a
+  CloudLinux/LiteSpeed handler on the first line of `.htaccess`:
+  `AddHandler application/x-httpd-alt-php84___lsphp .php`
+  Re-adding this is in `deploy.sh`'s path only via `.htaccess`, which is NOT overwritten by
+  a deploy — if you ever replace `.htaccess`, put that line back or the site 500s.
+- **No node/npm.** The frontend is built locally and uploaded (same as the old host).
+- **No root, no systemctl, no web-server config.** PHP version per domain is otherwise an
+  hPanel setting (Advanced → PHP Configuration).
+
+## Redeploy
+**Backend** — push to GitHub, then:
+```bash
+ssh -i ~/.ssh/paisa_hostinger -p 65002 u566989246@82.180.152.250 'bash ~/apps/1paisakart/deploy.sh'
+```
+(`~/apps/1paisakart/deploy.sh` = [`deploy-hostinger.sh`](../deploy-hostinger.sh): git pull →
+rsync → composer → rewrite index.php → migrate → recache.)
+
+**Frontend** — built locally, two uploads:
+```bash
+cd frontend && npm run build
+scp -i ~/.ssh/paisa_hostinger -P 65002 dist/assets/* \
+  u566989246@82.180.152.250:~/domains/1paisakart.com/public_html/assets/
+scp -i ~/.ssh/paisa_hostinger -P 65002 dist/index.html \
+  u566989246@82.180.152.250:~/apps/1paisakart/public/spa.html
+```
+`spa.html` lives in the **app's** `public/`, not the web root — Laravel's fallback route
+reads it from disk and serves it, so it is never fetched directly.
+
+## .env
+Lives only at `~/apps/1paisakart/.env` (mode 600), never in git. Beyond the usual keys:
+- `UPLOADS_ROOT=/home/u566989246/domains/1paisakart.com/public_html/uploads` — images must be
+  written somewhere Apache serves, now that the app is outside the web root. `UPLOADS_URL=/uploads`.
+- `SITE_PASSWORD` — the private-site gate. Empty = public.
+- `SANCTUM_STATEFUL_DOMAINS=1paisakart.com,www.1paisakart.com` — login fails on any origin
+  not listed here, including a bare IP.
+- DB credentials can be set interactively with `bash ~/apps/1paisakart/set-db-creds.sh`,
+  which tests the connection before writing.
+
+---
+
+# Deployment — GoDaddy cPanel (OLD server, retired 2026-10-27)
 
 Live: **https://1paisakart.com** — addon domain, docroot `~/public_html/1paisakart.com`,
 Laravel app in `~/onepaisakart` (outside web root). PHP 8.4, MySQL, SFTP-only (no SSH shell).
